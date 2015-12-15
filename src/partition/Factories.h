@@ -25,6 +25,7 @@
 #include "partition/refinement/LPRefiner.h"
 #include "partition/refinement/MaxGainNodeKWayFMRefiner.h"
 #include "partition/refinement/TwoWayFMRefiner.h"
+#include "partition/refinement/TwoWayAdvancedFMRefiner.h"
 #include "partition/refinement/policies/FMQueueCloggingPolicies.h"
 #include "partition/refinement/policies/FMStopPolicies.h"
 
@@ -52,6 +53,14 @@ using InitialPartitioningFactory = Factory<InitialPartitionerAlgorithm,
 
 using TwoWayFMFactoryExecutor = KFMFactoryExecutor<TwoWayFMRefiner>;
 using TwoWayFMFactoryDispatcher = StaticDispatcher<TwoWayFMFactoryExecutor,
+                                                   Typelist<NumberOfFruitlessMovesStopsSearch,
+                                                            RandomWalkModelStopsSearch,
+                                                            nGPRandomWalkStopsSearch>,
+                                                   Typelist<NullPolicy>,
+                                                   IRefiner*>;
+						   
+using TwoWayAdvancedFMFactoryExecutor = KFMFactoryExecutor<TwoWayAdvancedFMRefiner>;
+using TwoWayAdvancedFMFactoryDispatcher = StaticDispatcher<TwoWayAdvancedFMFactoryExecutor,
                                                    Typelist<NumberOfFruitlessMovesStopsSearch,
                                                             RandomWalkModelStopsSearch,
                                                             nGPRandomWalkStopsSearch>,

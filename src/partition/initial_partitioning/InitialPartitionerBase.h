@@ -83,18 +83,17 @@ class InitialPartitionerBase {
   void performFMRefinement() {
     if (_config.initial_partitioning.refinement) {
       std::unique_ptr<IRefiner> refiner;
-      if (_config.partition.refinement_algorithm == RefinementAlgorithm::twoway_fm &&
-          _config.initial_partitioning.k > 2) {
+      if (_config.initial_partitioning.k > 2) {
         refiner = (RefinerFactory::getInstance().createObject(
                      RefinementAlgorithm::kway_fm,
                      _hg, _config));
         LOG("WARNING: Trying to use twoway_fm for k > 2! Refiner is set to kway_fm.");
       } else {
         refiner = (RefinerFactory::getInstance().createObject(
-                     _config.partition.refinement_algorithm,
+                     RefinementAlgorithm::twoway_fm,
                      _hg, _config));
       }
-
+      
       refiner->initialize();
       std::vector<HypernodeID> refinement_nodes;
       HyperedgeWeight current_cut = metrics::hyperedgeCut(_hg);

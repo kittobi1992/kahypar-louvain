@@ -124,7 +124,6 @@ class KWayPriorityQueue {
   void deleteMax(IDType& max_id, KeyType& max_key, PartitionID& max_part) noexcept {
     size_t max_index = UseRandomTieBreaking ? maxIndexRandomTieBreaking() : maxIndex();
     ASSERT(max_index < _num_enabled_pqs, V(max_index));
-
     max_part = _part[max_index];
     max_id = _queues[max_index].getMax();
     max_key = _queues[max_index].getMaxKey();
@@ -269,7 +268,7 @@ class KWayPriorityQueue {
 
   size_t maxIndex() const noexcept {
     size_t max_index = kInvalidIndex;
-    KeyType max_key = MetaKey::min();
+    KeyType max_key = MetaKey::lowest();
     for (size_t index = 0; index < _num_enabled_pqs; ++index) {
       ASSERT(!_queues[index].empty(), V(index));
       const KeyType key = _queues[index].getMaxKey();
@@ -283,7 +282,7 @@ class KWayPriorityQueue {
   }
 
   size_t maxIndexRandomTieBreaking()  noexcept {
-    KeyType max_key = MetaKey::min();
+    KeyType max_key = MetaKey::lowest();
     for (size_t index = 0; index < _num_enabled_pqs; ++index) {
       ASSERT(!_queues[index].empty(), V(index));
       const KeyType key = _queues[index].getMaxKey();
