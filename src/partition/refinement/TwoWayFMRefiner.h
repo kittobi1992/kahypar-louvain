@@ -221,7 +221,7 @@ class TwoWayFMRefiner final : public IRefiner,
     int num_moves = 0;
     int num_moves_since_last_improvement = 0;
     _stopping_policy.resetStatistics();
-
+    //std::cout << "##################Starting Local Search#####################" << std::endl;
     const double beta = log(_hg.numNodes());
     while (!_pq.empty() && !_stopping_policy.searchShouldStop(num_moves_since_last_improvement,
                                                               _config, beta, best_cut, current_cut)) {
@@ -266,9 +266,10 @@ class TwoWayFMRefiner final : public IRefiner,
 
       current_imbalance = metrics::imbalance(_hg, _config);
 
+      HyperedgeWeight old_cut = current_cut;
       current_cut -= max_gain;
       _stopping_policy.updateStatistics(max_gain);
-
+      //LOG("Gain: " << max_gain << ", Old Cut: " << old_cut << ", Current Cut: " << current_cut);
       ASSERT(current_cut == metrics::hyperedgeCut(_hg),
              V(current_cut) << V(metrics::hyperedgeCut(_hg)));
 

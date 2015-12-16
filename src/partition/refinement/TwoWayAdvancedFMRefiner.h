@@ -41,6 +41,8 @@ using defs::HypernodeWeight;
 using defs::IncidenceIterator;
 using AdvancedGain = double;
 
+#define EPS 1e-4
+
 namespace partition {
 static const bool dbg_refinement_2way_advanced_fm_improvements_cut = false;
 static const bool dbg_refinement_2way_advanced_fm_improvements_balance = false;
@@ -103,8 +105,8 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
       if (_gain_cache[hn] == kNotCached) {
         _gain_cache[hn] = computeGain(hn);
       }
-      ASSERT(_gain_cache[hn] == computeGain(hn),
-             V(hn) << V(_gain_cache[hn]) << V(computeGain(hn)));
+      /*ASSERT(_gain_cache[hn] == computeGain(hn),
+             V(hn) << V(_gain_cache[hn]) << V(computeGain(hn)));*/
       _pq.insert(hn, 1 - _hg.partID(hn),computeGain(hn));
       if (_hg.partWeight(1 - _hg.partID(hn)) < max_allowed_part_weights[1 - _hg.partID(hn)]) {
         _pq.enablePart(1 - _hg.partID(hn));
@@ -180,7 +182,7 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
               _pq.isEnabled(_hg.partID(refinement_nodes[i]) ^ 1)), V(refinement_nodes[i]));
     }
 
-    ASSERT([&]() {
+    /*ASSERT([&]() {
         for (const HypernodeID hn : _hg.nodes()) {
           if (_gain_cache[hn] != kNotCached && _gain_cache[hn] != computeGain(hn)) {
             LOGVAR(hn);
@@ -190,7 +192,7 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
           }
         }
         return true;
-      } (), "GainCache Invalid");
+      } (), "GainCache Invalid");*/
 
     const HyperedgeWeight initial_cut = best_cut;
     const double initial_imbalance = best_imbalance;
@@ -201,7 +203,7 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
     int num_moves = 0;
     int num_moves_since_last_improvement = 0;
     _stopping_policy.resetStatistics();
-
+    //std::cout << "##################Starting Local Search#####################" << std::endl;
     const double beta = log(_hg.numNodes());
     while (!_pq.empty() && !_stopping_policy.searchShouldStop(num_moves_since_last_improvement,
                                                               _config, beta, best_cut, current_cut)) {
@@ -218,22 +220,21 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
           << " target_part=" << to_part);
       ASSERT(!_hg.marked(max_gain_node),
              "HN " << max_gain_node << "is marked and not eligable to be moved");
-      ASSERT(max_gain == computeGain(max_gain_node), "Inconsistent gain caculation: " <<
+      ASSERT(fabs(max_gain-computeGain(max_gain_node)) <= EPS, "Inconsistent gain caculation: " <<
              "expected g(" << max_gain_node << ")=" << computeGain(max_gain_node) <<
              " - got g(" << max_gain_node << ")=" << max_gain);
       ASSERT(_hg.isBorderNode(max_gain_node), "HN " << max_gain_node << "is no border node");
-      ASSERT([&]() {
+      /*ASSERT([&]() {
           _hg.changeNodePart(max_gain_node, from_part, to_part);
           ASSERT((current_cut - max_gain) == metrics::hyperedgeCut(_hg),
                  "cut=" << current_cut - max_gain << "!=" << metrics::hyperedgeCut(_hg));
           _hg.changeNodePart(max_gain_node, to_part, from_part);
           return true;
-        } (), "max_gain move does not correspond to expected cut!");
+        } (), "max_gain move does not correspond to expected cut!");*/
 
 
       DBG(dbg_refinement_kway_fm_move, "moving HN" << max_gain_node << " from " << from_part
           << " to " << to_part << " (weight=" << _hg.nodeWeight(max_gain_node) << ")");
-
       _hg.changeNodePart(max_gain_node, from_part, to_part, _non_border_hns_to_remove);
       _hg.mark(max_gain_node);
       
@@ -247,13 +248,15 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
 
       current_imbalance = metrics::imbalance(_hg, _config);
 
-      current_cut -= max_gain;
-      _stopping_policy.updateStatistics(max_gain);
-
+      
+      Gain fm_gain = updateNeighbours(max_gain_node, from_part, to_part, max_allowed_part_weights);
+      
+      HyperedgeWeight old_cut = current_cut;
+      current_cut -= fm_gain;
+      _stopping_policy.updateStatistics(old_cut-current_cut);
       ASSERT(current_cut == metrics::hyperedgeCut(_hg),
              V(current_cut) << V(metrics::hyperedgeCut(_hg)));
-
-      updateNeighbours(max_gain_node, from_part, to_part, max_allowed_part_weights);
+      //LOG(fm_gain << " vs. " << max_gain << ", Old Cut: " << old_cut << ", Current Cut: " << current_cut);
 
       // right now, we do not allow a decrease in cut in favor of an increase in balance
       const bool improved_cut_within_balance = (current_cut < best_cut) &&
@@ -290,7 +293,7 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
     rollback(num_moves - 1, min_cut_index);
     _rollback_delta_cache.resetUsedEntries(_gain_cache);
 
-    ASSERT([&]() {
+    /*ASSERT([&]() {
         for (HypernodeID hn = 0; hn < _gain_cache.size(); ++hn) {
           if (_gain_cache[hn] != kNotCached && _gain_cache[hn] != computeGain(hn)) {
             LOGVAR(hn);
@@ -300,7 +303,7 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
           }
         }
         return true;
-      } (), "GainCache Invalid");
+      } (), "GainCache Invalid");*/
 
 
     ASSERT(best_cut == metrics::hyperedgeCut(_hg), "Incorrect rollback operation");
@@ -317,13 +320,26 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
                                                  initial_imbalance, _config.partition.epsilon);
   }
 
-  void updateNeighbours(const HypernodeID moved_hn, const PartitionID from_part,
+  Gain updateNeighbours(const HypernodeID moved_hn, const PartitionID from_part,
                         const PartitionID to_part,
                         const std::array<HypernodeWeight, 2>& max_allowed_part_weights) {
     const AdvancedGain temp = _gain_cache[moved_hn];
     const AdvancedGain rb_delta = _rollback_delta_cache.get(moved_hn);
     _gain_cache[moved_hn] = kNotCached;
+    AdvancedGain delta_moved_hn = 0.0;
+    Gain fm_gain = 0;
     for (const HyperedgeID he : _hg.incidentEdges(moved_hn)) {
+      const HypernodeID pins_in_source_part_before = _hg.pinCountInPart(he,from_part)+1;
+      const HypernodeID pins_in_target_part_before = _hg.pinCountInPart(he,to_part)-1;
+      
+      if(_hg.connectivity(he) == 1 && pins_in_source_part_before == 1) {
+	fm_gain += _hg.edgeWeight(he);
+      } else if(_hg.connectivity(he) > 1 && pins_in_target_part_before == 0) {
+	fm_gain -= _hg.edgeWeight(he);
+      }
+      
+      delta_moved_hn += 2.0*static_cast<double>(pins_in_target_part_before-pins_in_source_part_before
+			+ _hg.edgeWeight(he))/static_cast<double>(_hg.edgeSize(he)-1);
       fullUpdate(from_part, to_part, he);
       /*if (_locked_hes.get(he) != kLocked) {
         if (_locked_hes.get(he) == to_part) {
@@ -349,8 +365,8 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
       }*/
     }
 
-    _gain_cache[moved_hn] = -temp;
-    _rollback_delta_cache.set(moved_hn, rb_delta + 2 * temp);
+    _gain_cache[moved_hn] = temp - delta_moved_hn;
+    _rollback_delta_cache.set(moved_hn, rb_delta + delta_moved_hn);
 
     for (const HypernodeID hn : _hns_to_activate) {
       ASSERT(!_hg.active(hn), V(hn));
@@ -406,7 +422,7 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
                 ASSERT(_hg.active(pin), "HN " << pin << " is in PQ but not active");
                 ASSERT(!_hg.marked(pin),
                        "HN " << pin << " should not be in PQ, because it is already marked");
-                if (_pq.key(pin, other_part) != computeGain(pin)) {
+                if (fabs(_pq.key(pin, other_part)-computeGain(pin)) > EPS) {
                   LOG("Incorrect gain for HN " << pin);
                   LOG("expected key=" << computeGain(pin));
                   LOG("actual key=" << _pq.key(pin, other_part));
@@ -419,29 +435,31 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
                 return false;
               }
             }
-            if (_gain_cache[pin] != kNotCached && _gain_cache[pin] != computeGain(pin)) {
+            /*if (_gain_cache[pin] != kNotCached && _gain_cache[pin] != computeGain(pin)) {
               LOG("GainCache invalid after UpdateNeighbours");
               LOGVAR(pin);
               LOGVAR(_gain_cache[pin]);
               LOGVAR(computeGain(pin));
               return false;
-            }
+            }*/
           }
         }
         return true;
       } (), "UpdateNeighbors failed!");
     
-    for (const HyperedgeID he : _hg.incidentEdges(moved_hn)) {
+    /*for (const HyperedgeID he : _hg.incidentEdges(moved_hn)) {
       for(const HypernodeID pin : _hg.pins(he)) {
 	if(!_hg.marked(pin) && _hg.active(pin) && abs(computeGain(pin)-_pq.key(pin,_hg.partID(pin) ^ 1)) > 10e-6)
 	  LOG(computeGain(pin) << " != " << _pq.key(pin,_hg.partID(pin) ^ 1));
       }
-    }
+    }*/
 
     ASSERT((!_pq.empty(0) && _hg.partWeight(0) < max_allowed_part_weights[0] ?
             _pq.isEnabled(0) : !_pq.isEnabled(0)), V(0));
     ASSERT((!_pq.empty(1) && _hg.partWeight(1) < max_allowed_part_weights[1] ?
             _pq.isEnabled(1) : !_pq.isEnabled(1)), V(1));
+
+    return fm_gain;
   }
 
   void updateGainCache(const HypernodeID pin, const AdvancedGain gain_delta) noexcept __attribute__ ((always_inline)) {
@@ -545,7 +563,7 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
         << " from gain " << _pq.key(pin, target_part) << " to "
         << _pq.key(pin, target_part) + gain_delta << " in PQ " << target_part);
     _pq.updateKeyBy(pin, target_part, gain_delta);
-    ASSERT(_gain_cache[pin] != kNotCached, "Error");
+    //ASSERT(_gain_cache[pin] != kNotCached, "Error");
     _rollback_delta_cache.update(pin, -gain_delta);
     _gain_cache[pin] += gain_delta;
   }
@@ -571,6 +589,21 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
       gain += static_cast<double>(_hg.edgeWeight(he))*
 				 ((1.0 + pin_count_to_part - pin_count_from_part)
 				  /static_cast<double>(_hg.edgeSize(he)-1));
+    }
+    return gain;
+  }
+  
+  Gain computeFMGain(const HypernodeID hn) const noexcept {
+    Gain gain = 0;
+    ASSERT(_hg.partID(hn) < 2, "Trying to do gain computation for k-way partitioning");
+    for (const HyperedgeID he : _hg.incidentEdges(hn)) {
+      ASSERT(_hg.edgeSize(he) > 1, V(he));
+      if (_hg.pinCountInPart(he, _hg.partID(hn) ^ 1) == 0) {
+        gain -= _hg.edgeWeight(he);
+      }
+      if (_hg.pinCountInPart(he, _hg.partID(hn)) == 1) {
+        gain += _hg.edgeWeight(he);
+      }
     }
     return gain;
   }
