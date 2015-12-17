@@ -161,9 +161,11 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
 
     //Update Gain-Cache
     updateGainCacheAfterUncontraction(refinement_nodes[0],refinement_nodes[1]);
+    activateNeighbors(refinement_nodes[0],max_allowed_part_weights);
+    activateNeighbors(refinement_nodes[1],max_allowed_part_weights);
 
     Randomize::shuffleVector(refinement_nodes, num_refinement_nodes);
-    for (size_t i = 0; i < num_refinement_nodes; ++i) {
+   /* for (size_t i = 0; i < num_refinement_nodes; ++i) {
       activate(refinement_nodes[i], max_allowed_part_weights);
 
 
@@ -174,7 +176,7 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
       ASSERT((_config.partition.max_part_weights[0] != _config.partition.max_part_weights[1]) ||
              (!_hg.isBorderNode(refinement_nodes[i]) ||
               _pq.isEnabled(_hg.partID(refinement_nodes[i]) ^ 1)), V(refinement_nodes[i]));
-    }
+    }*/
 
     ASSERT([&]() {
         for (const HypernodeID hn : _hg.nodes()) {
@@ -242,7 +244,8 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
       _stopping_policy.updateStatistics(old_cut-current_cut);
       ASSERT(current_cut == metrics::hyperedgeCut(_hg),
              V(current_cut) << V(metrics::hyperedgeCut(_hg)));
-      //LOG(fm_gain << " vs. " << max_gain << ", Old Cut: " << old_cut << ", Current Cut: " << current_cut);
+      //LOG(fm_gain << " vs. " << max_gain << ", Old Cut: " << old_cut << ", Current Cut: " << current_cut 
+		  //<< ", Current Imbalance: " << current_imbalance);
 
       // right now, we do not allow a decrease in cut in favor of an increase in balance
       const bool improved_cut_within_balance = (current_cut < best_cut) &&
@@ -574,6 +577,41 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
 	  _gain_cache[hn] = computeGain(hn);
 	}
      }
+     /*
+           PartitionID part = _hg.partID(u);
+     LOG(u << ", " << v);
+     for(HyperedgeID he : _hg.incidentEdges(u)) {
+	bool is_unconcatraction_partner_in_same_he = false;
+	for(HypernodeID pin : _hg.pins(he)) {
+	  if(pin == v) {
+	    is_unconcatraction_partner_in_same_he = true; 
+	    break;
+	  }
+	}
+	if(is_unconcatraction_partner_in_same_he) {
+	  for(HypernodeID pin : _hg.pins(he)) {
+	    if(_gain_cache[pin] != kNotCached) {
+	      if(_hg.partID(pin) == part) {
+		_gain_cache[pin] -= static_cast<double>(_hg.edgeWeight(he))/static_cast<double>(_hg.edgeSize(he)-1);
+	      } else {
+		_gain_cache[pin] += static_cast<double>(_hg.edgeWeight(he))/static_cast<double>(_hg.edgeSize(he)-1);
+	      }
+	    }
+	  }
+	}
+     }
+     _gain_cache[u] = computeGain(u);
+     _gain_cache[v] = computeGain(v);*/
+  }
+  
+  void activateNeighbors(HypernodeID u, const std::array<HypernodeWeight, 2>& max_allowed_part_weights) {
+    for(HyperedgeID he : _hg.incidentEdges(u)) {
+      for(HypernodeID pin : _hg.pins(he)) {
+	if(!_hg.active(pin)) {
+	  activate(pin,max_allowed_part_weights);
+	}
+      }
+    }
   }
 
   using FMRefinerBase::_hg;
