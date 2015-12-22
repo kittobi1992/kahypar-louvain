@@ -161,11 +161,12 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
 
     //Update Gain-Cache
     updateGainCacheAfterUncontraction(refinement_nodes[0],refinement_nodes[1]);
+    Randomize::shuffleVector(refinement_nodes, num_refinement_nodes);
     activateNeighbors(refinement_nodes[0],max_allowed_part_weights);
     activateNeighbors(refinement_nodes[1],max_allowed_part_weights);
 
-    Randomize::shuffleVector(refinement_nodes, num_refinement_nodes);
-   /* for (size_t i = 0; i < num_refinement_nodes; ++i) {
+   /*
+   for (size_t i = 0; i < num_refinement_nodes; ++i) {
       activate(refinement_nodes[i], max_allowed_part_weights);
 
 
@@ -177,7 +178,7 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
              (!_hg.isBorderNode(refinement_nodes[i]) ||
               _pq.isEnabled(_hg.partID(refinement_nodes[i]) ^ 1)), V(refinement_nodes[i]));
     }*/
-
+    
     ASSERT([&]() {
         for (const HypernodeID hn : _hg.nodes()) {
           if (_gain_cache[hn] != kNotCached && fabs(_gain_cache[hn] - computeGain(hn)) > EPS) {
@@ -561,7 +562,7 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
   }
   
   void updateGainCacheAfterUncontraction(const HypernodeID u, const HypernodeID v) {
-     std::set<HypernodeID> update_cache_nodes;
+     /*std::set<HypernodeID> update_cache_nodes;
      for(HyperedgeID he : _hg.incidentEdges(u)) {
 	for(HypernodeID pin : _hg.pins(he)) {
 	  update_cache_nodes.insert(pin);
@@ -576,10 +577,8 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
 	if(_gain_cache[hn] != kNotCached) {
 	  _gain_cache[hn] = computeGain(hn);
 	}
-     }
-     /*
-           PartitionID part = _hg.partID(u);
-     LOG(u << ", " << v);
+     }*/
+     PartitionID part = _hg.partID(u);
      for(HyperedgeID he : _hg.incidentEdges(u)) {
 	bool is_unconcatraction_partner_in_same_he = false;
 	for(HypernodeID pin : _hg.pins(he)) {
@@ -589,19 +588,29 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
 	  }
 	}
 	if(is_unconcatraction_partner_in_same_he) {
+	  double old_edge_size = static_cast<double>(_hg.edgeSize(he)-1);
+	  double hn_in_v_part_before = static_cast<double>(_hg.pinCountInPart(he,part)-1);
+	  double hn_not_in_v_part_before = static_cast<double>(_hg.pinCountInPart(he,1-part));
 	  for(HypernodeID pin : _hg.pins(he)) {
 	    if(_gain_cache[pin] != kNotCached) {
 	      if(_hg.partID(pin) == part) {
-		_gain_cache[pin] -= static_cast<double>(_hg.edgeWeight(he))/static_cast<double>(_hg.edgeSize(he)-1);
+		_gain_cache[pin] -= static_cast<double>(_hg.edgeWeight(he))
+				    *(1.0 + hn_not_in_v_part_before - hn_in_v_part_before)
+				    / (old_edge_size*(old_edge_size-1.0));
+		_gain_cache[pin] -= static_cast<double>(_hg.edgeWeight(he))/static_cast<double>(old_edge_size);
 	      } else {
-		_gain_cache[pin] += static_cast<double>(_hg.edgeWeight(he))/static_cast<double>(_hg.edgeSize(he)-1);
+		_gain_cache[pin] -= static_cast<double>(_hg.edgeWeight(he))*
+				    (1.0 - hn_not_in_v_part_before + hn_in_v_part_before)
+				    / (old_edge_size*(old_edge_size-1.0));
+		_gain_cache[pin] += static_cast<double>(_hg.edgeWeight(he))/static_cast<double>(old_edge_size);
 	      }
 	    }
 	  }
 	}
      }
-     _gain_cache[u] = computeGain(u);
-     _gain_cache[v] = computeGain(v);*/
+     if(_gain_cache[u] != kNotCached) {
+	_gain_cache[u] = computeGain(u);
+     }
   }
   
   void activateNeighbors(HypernodeID u, const std::array<HypernodeWeight, 2>& max_allowed_part_weights) {

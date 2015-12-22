@@ -186,9 +186,12 @@ class TwoWayFMRefiner final : public IRefiner,
         _gain_cache[refinement_nodes[0]] += changes.first;
       }
     }
+    
+    activateNeighbors(refinement_nodes[0],max_allowed_part_weights);
+    activateNeighbors(refinement_nodes[1],max_allowed_part_weights);
 
     Randomize::shuffleVector(refinement_nodes, num_refinement_nodes);
-    for (size_t i = 0; i < num_refinement_nodes; ++i) {
+    /*for (size_t i = 0; i < num_refinement_nodes; ++i) {
       activate(refinement_nodes[i], max_allowed_part_weights);
 
       // If Lmax0==Lmax1, then all border nodes should be active. However, if Lmax0 != Lmax1,
@@ -198,7 +201,7 @@ class TwoWayFMRefiner final : public IRefiner,
       ASSERT((_config.partition.max_part_weights[0] != _config.partition.max_part_weights[1]) ||
              (!_hg.isBorderNode(refinement_nodes[i]) ||
               _pq.isEnabled(_hg.partID(refinement_nodes[i]) ^ 1)), V(refinement_nodes[i]));
-    }
+    }*/
 
     ASSERT([&]() {
         for (const HypernodeID hn : _hg.nodes()) {
@@ -718,6 +721,16 @@ class TwoWayFMRefiner final : public IRefiner,
       }
     }
     return gain;
+  }
+  
+  void activateNeighbors(HypernodeID u, const std::array<HypernodeWeight, 2>& max_allowed_part_weights) {
+    for(HyperedgeID he : _hg.incidentEdges(u)) {
+      for(HypernodeID pin : _hg.pins(he)) {
+	if(!_hg.active(pin)) {
+	  activate(pin,max_allowed_part_weights);
+	}
+      }
+    }
   }
 
   using FMRefinerBase::_hg;
