@@ -375,7 +375,6 @@ void setDefaults(Configuration& config) {
     InitialPartitioningTechnique::flat;
   config.initial_partitioning.mode = Mode::recursive_bisection;
   config.initial_partitioning.algo = InitialPartitionerAlgorithm::pool;
-  config.initial_partitioning.init_alpha = 1.0;
   config.coarsening.contraction_limit_multiplier = 160;
   config.coarsening.max_allowed_weight_multiplier = 2.5;
   config.coarsening.contraction_limit =

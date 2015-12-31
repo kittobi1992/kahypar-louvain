@@ -196,6 +196,7 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
     HyperedgeWeight current_cut = best_cut;
     double current_imbalance = best_imbalance;
 
+
     int min_cut_index = -1;
     int num_moves = 0;
     int num_moves_since_last_improvement = 0;
@@ -226,18 +227,16 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
           << " to " << to_part << " (weight=" << _hg.nodeWeight(max_gain_node) << ")");
       _hg.changeNodePart(max_gain_node, from_part, to_part, _non_border_hns_to_remove);
       _hg.mark(max_gain_node);
-      
-
+ 
       if (_hg.partWeight(to_part) >= max_allowed_part_weights[to_part]) {
-        _pq.disablePart(to_part);
+	_pq.disablePart(to_part);
       }
       if (_hg.partWeight(from_part) < max_allowed_part_weights[from_part]) {
         _pq.enablePart(from_part);
       }
-
+      
       current_imbalance = metrics::imbalance(_hg, _config);
 
-      
       Gain fm_gain = updateNeighbours(max_gain_node, from_part, to_part, max_allowed_part_weights);
       
       HyperedgeWeight old_cut = current_cut;
@@ -245,8 +244,11 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
       _stopping_policy.updateStatistics(old_cut-current_cut);
       ASSERT(current_cut == metrics::hyperedgeCut(_hg),
              V(current_cut) << V(metrics::hyperedgeCut(_hg)));
-      //LOG(fm_gain << " vs. " << max_gain << ", Old Cut: " << old_cut << ", Current Cut: " << current_cut 
-		  //<< ", Current Imbalance: " << current_imbalance);
+      /*LOG(fm_gain << " vs. " << max_gain << ", Old Cut: " << old_cut << ", Current Cut: " << current_cut  
+		  << ", " << (1-_hg.partID(max_gain_node)) << " -> " << _hg.partID(max_gain_node)
+		  << ", Part Weights: (" << _hg.partWeight(0) << "/" << max_allowed_part_weights[0] << "," 
+		  << _hg.partWeight(1) << "/" << max_allowed_part_weights[1]<< "), "
+		  << " PQ: (" << _pq.isEnabled(0)<<","<<_pq.isEnabled(1) << ")");*/
 
       // right now, we do not allow a decrease in cut in favor of an increase in balance
       const bool improved_cut_within_balance = (current_cut < best_cut) &&
@@ -557,6 +559,31 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
       gain += static_cast<double>(_hg.edgeWeight(he))*
 				 ((1.0 + pin_count_to_part - pin_count_from_part)
 				  /static_cast<double>(_hg.edgeSize(he)-1));
+    }
+    /*Gain fm_gain = computeFMGain(hn);
+    if(gain > 5.0) {
+      std::cout << "Hypernode: " << hn << ", Part: " << _hg.partID(hn) << ", AdvancedGain: " << gain << ", FMGain: " << fm_gain << std::endl;
+      for(HyperedgeID he : _hg.incidentEdges(hn)) {
+	std::cout << "Hyperedge: " << he << ", EdgeWeight: " << _hg.edgeWeight(he) << ", EdgeSize: " 
+		  << _hg.edgeSize(he) << ", Part0: " << _hg.pinCountInPart(he,0) 
+		  << ", Part1: " << _hg.pinCountInPart(he,1) << std::endl;
+      }
+      std::cout << "-------------------------------" << std::endl;
+    }*/
+    return gain;
+  }
+  
+  Gain computeFMGain(const HypernodeID hn) const noexcept {
+    Gain gain = 0;
+    ASSERT(_hg.partID(hn) < 2, "Trying to do gain computation for k-way partitioning");
+    for (const HyperedgeID he : _hg.incidentEdges(hn)) {
+      ASSERT(_hg.edgeSize(he) > 1, V(he));
+      if (_hg.pinCountInPart(he, _hg.partID(hn) ^ 1) == 0) {
+        gain -= _hg.edgeWeight(he);
+      }
+      if (_hg.pinCountInPart(he, _hg.partID(hn)) == 1) {
+        gain += _hg.edgeWeight(he);
+      }
     }
     return gain;
   }
