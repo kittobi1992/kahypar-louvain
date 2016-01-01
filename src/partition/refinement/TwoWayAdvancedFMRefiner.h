@@ -589,7 +589,7 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
   }
   
   void updateGainCacheAfterUncontraction(const HypernodeID u, const HypernodeID v) {
-     /*std::set<HypernodeID> update_cache_nodes;
+     std::set<HypernodeID> update_cache_nodes;
      for(HyperedgeID he : _hg.incidentEdges(u)) {
 	for(HypernodeID pin : _hg.pins(he)) {
 	  update_cache_nodes.insert(pin);
@@ -604,8 +604,8 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
 	if(_gain_cache[hn] != kNotCached) {
 	  _gain_cache[hn] = computeGain(hn);
 	}
-     }*/
-     PartitionID part = _hg.partID(u);
+     }
+     /*PartitionID part = _hg.partID(u);
      for(HyperedgeID he : _hg.incidentEdges(u)) {
 	bool is_unconcatraction_partner_in_same_he = false;
 	for(HypernodeID pin : _hg.pins(he)) {
@@ -637,7 +637,7 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
      }
      if(_gain_cache[u] != kNotCached) {
 	_gain_cache[u] = computeGain(u);
-     }
+     }*/
   }
   
   void activateNeighbors(HypernodeID u, const std::array<HypernodeWeight, 2>& max_allowed_part_weights) {
