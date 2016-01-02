@@ -70,6 +70,7 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
   TwoWayAdvancedFMRefiner(Hypergraph& hypergraph, const Configuration& config) noexcept :
     FMRefinerBase(hypergraph, config),
     _pq(2),
+    _last_uncontraction_pair(_hg.initialNumNodes()+1,_hg.initialNumNodes()+1),
     _he_fully_active(_hg.initialNumEdges(), false),
     _hns_in_activation_vector(_hg.initialNumNodes(), false),
     _performed_moves(),
@@ -560,52 +561,17 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
 				 ((1.0 + pin_count_to_part - pin_count_from_part)
 				  /static_cast<double>(_hg.edgeSize(he)-1));
     }
-    /*Gain fm_gain = computeFMGain(hn);
-    if(gain > 5.0) {
-      std::cout << "Hypernode: " << hn << ", Part: " << _hg.partID(hn) << ", AdvancedGain: " << gain << ", FMGain: " << fm_gain << std::endl;
-      for(HyperedgeID he : _hg.incidentEdges(hn)) {
-	std::cout << "Hyperedge: " << he << ", EdgeWeight: " << _hg.edgeWeight(he) << ", EdgeSize: " 
-		  << _hg.edgeSize(he) << ", Part0: " << _hg.pinCountInPart(he,0) 
-		  << ", Part1: " << _hg.pinCountInPart(he,1) << std::endl;
-      }
-      std::cout << "-------------------------------" << std::endl;
-    }*/
     return gain;
   }
   
-  Gain computeFMGain(const HypernodeID hn) const noexcept {
-    Gain gain = 0;
-    ASSERT(_hg.partID(hn) < 2, "Trying to do gain computation for k-way partitioning");
-    for (const HyperedgeID he : _hg.incidentEdges(hn)) {
-      ASSERT(_hg.edgeSize(he) > 1, V(he));
-      if (_hg.pinCountInPart(he, _hg.partID(hn) ^ 1) == 0) {
-        gain -= _hg.edgeWeight(he);
-      }
-      if (_hg.pinCountInPart(he, _hg.partID(hn)) == 1) {
-        gain += _hg.edgeWeight(he);
-      }
-    }
-    return gain;
-  }
+
   
   void updateGainCacheAfterUncontraction(const HypernodeID u, const HypernodeID v) {
-     std::set<HypernodeID> update_cache_nodes;
-     for(HyperedgeID he : _hg.incidentEdges(u)) {
-	for(HypernodeID pin : _hg.pins(he)) {
-	  update_cache_nodes.insert(pin);
-	}
+     if((u == _last_uncontraction_pair.first && v == _last_uncontraction_pair.second)
+       || (v == _last_uncontraction_pair.first && u == _last_uncontraction_pair.second)) {
+	return;
      }
-     for(HyperedgeID he : _hg.incidentEdges(v)) {
-	for(HypernodeID pin : _hg.pins(he)) {
-	  update_cache_nodes.insert(pin);
-	}
-     }
-     for(HypernodeID hn : update_cache_nodes) {
-	if(_gain_cache[hn] != kNotCached) {
-	  _gain_cache[hn] = computeGain(hn);
-	}
-     }
-     /*PartitionID part = _hg.partID(u);
+     PartitionID part = _hg.partID(u);
      for(HyperedgeID he : _hg.incidentEdges(u)) {
 	bool is_unconcatraction_partner_in_same_he = false;
 	for(HypernodeID pin : _hg.pins(he)) {
@@ -635,9 +601,11 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
 	  }
 	}
      }
+    _last_uncontraction_pair.first = u; 
+    _last_uncontraction_pair.second = v;
      if(_gain_cache[u] != kNotCached) {
 	_gain_cache[u] = computeGain(u);
-     }*/
+     }
   }
   
   void activateNeighbors(HypernodeID u, const std::array<HypernodeWeight, 2>& max_allowed_part_weights) {
@@ -652,6 +620,7 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
 
   using FMRefinerBase::_hg;
   using FMRefinerBase::_config;
+  std::pair<HypernodeID,HypernodeID> _last_uncontraction_pair;
   KWayRefinementPQ _pq;
   FastResetBitVector<> _he_fully_active;
   FastResetBitVector<> _hns_in_activation_vector;
