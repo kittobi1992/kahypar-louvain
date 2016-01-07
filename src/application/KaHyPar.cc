@@ -51,11 +51,13 @@ using partition::RandomWinsLazyUpdateCoarsener;
 using partition::RandomWinsHeuristicCoarsener;
 using partition::TwoWayFMFactoryDispatcher;
 using partition::TwoWayAdvancedFMFactoryDispatcher;
+using partition::TwoWayAdvancedConnectivityFMFactoryDispatcher;
 using partition::HyperedgeFMFactoryDispatcher;
 using partition::KWayFMFactoryDispatcher;
 using partition::MaxGainNodeKWayFMFactoryDispatcher;
 using partition::TwoWayFMFactoryExecutor;
 using partition::TwoWayAdvancedFMFactoryExecutor;
+using partition::TwoWayAdvancedConnectivityFMFactoryExecutor;
 using partition::HyperedgeFMFactoryExecutor;
 using partition::KWayFMFactoryExecutor;
 using partition::MaxGainNodeKWayFMFactoryExecutor;
@@ -334,6 +336,9 @@ void configurePartitionerFromCommandLineInput(Configuration& config,
       } else if (vm["rtype"].as<std::string>() == "twoway_advanced_fm") {
         config.partition.refinement_algorithm =
           RefinementAlgorithm::twoway_advanced_fm;
+      } else if (vm["rtype"].as<std::string>() == "twoway_advanced_connectivity_fm") {
+        config.partition.refinement_algorithm =
+          RefinementAlgorithm::twoway_advanced_connectivity_fm;
       } else if (vm["rtype"].as<std::string>() == "kway_fm") {
         config.partition.refinement_algorithm =
           RefinementAlgorithm::kway_fm;
@@ -442,6 +447,16 @@ static Registrar<RefinerFactory> reg_twoway_advanced_fm_local_search(
       config.fm_local_search.stopping_rule),
     NullPolicy(),
     TwoWayAdvancedFMFactoryExecutor(), hypergraph, config);
+});
+
+static Registrar<RefinerFactory> reg_twoway_advanced_connectivity_fm_local_search(
+  RefinementAlgorithm::twoway_advanced_connectivity_fm,
+  [](Hypergraph& hypergraph, const Configuration& config) {
+  return TwoWayAdvancedConnectivityFMFactoryDispatcher::go(
+    PolicyRegistry<RefinementStoppingRule>::getInstance().getPolicy(
+      config.fm_local_search.stopping_rule),
+    NullPolicy(),
+    TwoWayAdvancedConnectivityFMFactoryExecutor(), hypergraph, config);
 });
 
 static Registrar<RefinerFactory> reg_kway_fm_maxgain_local_search(
