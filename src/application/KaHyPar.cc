@@ -52,12 +52,14 @@ using partition::RandomWinsHeuristicCoarsener;
 using partition::TwoWayFMFactoryDispatcher;
 using partition::TwoWayAdvancedFMFactoryDispatcher;
 using partition::TwoWayAdvancedConnectivityFMFactoryDispatcher;
+using partition::TwoWayAdvancedTransistionFMFactoryDispatcher;
 using partition::HyperedgeFMFactoryDispatcher;
 using partition::KWayFMFactoryDispatcher;
 using partition::MaxGainNodeKWayFMFactoryDispatcher;
 using partition::TwoWayFMFactoryExecutor;
 using partition::TwoWayAdvancedFMFactoryExecutor;
 using partition::TwoWayAdvancedConnectivityFMFactoryExecutor;
+using partition::TwoWayAdvancedTransistionFMFactoryExecutor;
 using partition::HyperedgeFMFactoryExecutor;
 using partition::KWayFMFactoryExecutor;
 using partition::MaxGainNodeKWayFMFactoryExecutor;
@@ -339,6 +341,9 @@ void configurePartitionerFromCommandLineInput(Configuration& config,
       } else if (vm["rtype"].as<std::string>() == "twoway_advanced_connectivity_fm") {
         config.partition.refinement_algorithm =
           RefinementAlgorithm::twoway_advanced_connectivity_fm;
+      } else if (vm["rtype"].as<std::string>() == "twoway_advanced_transistion_fm") {
+        config.partition.refinement_algorithm =
+          RefinementAlgorithm::twoway_advanced_transistion_fm;
       } else if (vm["rtype"].as<std::string>() == "kway_fm") {
         config.partition.refinement_algorithm =
           RefinementAlgorithm::kway_fm;
@@ -457,6 +462,16 @@ static Registrar<RefinerFactory> reg_twoway_advanced_connectivity_fm_local_searc
       config.fm_local_search.stopping_rule),
     NullPolicy(),
     TwoWayAdvancedConnectivityFMFactoryExecutor(), hypergraph, config);
+});
+
+static Registrar<RefinerFactory> reg_twoway_advanced_transistion_fm_local_search(
+  RefinementAlgorithm::twoway_advanced_transistion_fm,
+  [](Hypergraph& hypergraph, const Configuration& config) {
+  return TwoWayAdvancedTransistionFMFactoryDispatcher::go(
+    PolicyRegistry<RefinementStoppingRule>::getInstance().getPolicy(
+      config.fm_local_search.stopping_rule),
+    NullPolicy(),
+    TwoWayAdvancedTransistionFMFactoryExecutor(), hypergraph, config);
 });
 
 static Registrar<RefinerFactory> reg_kway_fm_maxgain_local_search(
@@ -743,7 +758,8 @@ int main(int argc, char* argv[]) {
 #endif
 
   std::chrono::duration<double> elapsed_seconds = end - start;
-
+  
+  
 #ifdef GATHER_STATS
   LOG("*******************************");
   LOG("***** GATHER_STATS ACTIVE *****");

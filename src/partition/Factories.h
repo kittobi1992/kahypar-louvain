@@ -26,6 +26,7 @@
 #include "partition/refinement/MaxGainNodeKWayFMRefiner.h"
 #include "partition/refinement/TwoWayFMRefiner.h"
 #include "partition/refinement/TwoWayAdvancedFMRefiner.h"
+#include "partition/refinement/TwoWayAdvancedTransistionFMRefiner.h"
 #include "partition/refinement/TwoWayAdvancedConnectivityFMRefiner.h"
 #include "partition/refinement/policies/FMQueueCloggingPolicies.h"
 #include "partition/refinement/policies/FMStopPolicies.h"
@@ -75,6 +76,14 @@ using TwoWayAdvancedConnectivityFMFactoryDispatcher = StaticDispatcher<TwoWayAdv
                                                             nGPRandomWalkStopsSearch>,
                                                    Typelist<NullPolicy>,
                                                    IRefiner*>;
+						   
+using TwoWayAdvancedTransistionFMFactoryExecutor = KFMFactoryExecutor<TwoWayAdvancedTransistionFMRefiner>;
+using TwoWayAdvancedTransistionFMFactoryDispatcher = StaticDispatcher<TwoWayAdvancedTransistionFMFactoryExecutor,
+                                                   Typelist<NumberOfFruitlessMovesStopsSearch,
+                                                            RandomWalkModelStopsSearch,
+                                                            nGPRandomWalkStopsSearch>,
+                                                   Typelist<NullPolicy>,
+                                                   IRefiner*>;						   
 						   
 using HyperedgeFMFactoryExecutor = FMFactoryExecutor<HyperedgeFMRefiner>;
 using HyperedgeFMFactoryDispatcher = StaticDispatcher<HyperedgeFMFactoryExecutor,

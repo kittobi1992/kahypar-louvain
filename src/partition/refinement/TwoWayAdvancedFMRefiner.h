@@ -158,7 +158,7 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
     _hg.resetHypernodeState();
     _he_fully_active.resetAllBitsToFalse();
     _locked_hes.resetUsedEntries();
-    
+   
 
     //Update Gain-Cache
     updateGainCacheAfterUncontraction(refinement_nodes[0],refinement_nodes[1]);
@@ -245,11 +245,6 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
       _stopping_policy.updateStatistics(old_cut-current_cut);
       ASSERT(current_cut == metrics::hyperedgeCut(_hg),
              V(current_cut) << V(metrics::hyperedgeCut(_hg)));
-      /*LOG(fm_gain << " vs. " << max_gain << ", Old Cut: " << old_cut << ", Current Cut: " << current_cut  
-		  << ", " << (1-_hg.partID(max_gain_node)) << " -> " << _hg.partID(max_gain_node)
-		  << ", Part Weights: (" << _hg.partWeight(0) << "/" << max_allowed_part_weights[0] << "," 
-		  << _hg.partWeight(1) << "/" << max_allowed_part_weights[1]<< "), "
-		  << " PQ: (" << _pq.isEnabled(0)<<","<<_pq.isEnabled(1) << ")");*/
 
       // right now, we do not allow a decrease in cut in favor of an increase in balance
       const bool improved_cut_within_balance = (current_cut < best_cut) &&
@@ -259,6 +254,12 @@ class TwoWayAdvancedFMRefiner final : public IRefiner,
                                                 <= _config.partition.max_part_weights[1]);
       const bool improved_balance_less_equal_cut = (current_imbalance < best_imbalance) &&
                                                    (current_cut <= best_cut);
+						   
+           /* LOG(fm_gain << " vs. " << max_gain << ", Old Cut: " << old_cut << ", Current Cut: " << current_cut  
+		  << ", Best Cut: " <<best_cut<<", " << (1-_hg.partID(max_gain_node)) << " -> " << _hg.partID(max_gain_node)
+		  << ", Part Weights: (" << (_hg.partWeight(0) <= _config.partition.max_part_weights[0]) << "," 
+		  << (_hg.partWeight(1) <= _config.partition.max_part_weights[1])<< "), "
+		  << " PQ: (" << _pq.size(0) << "("<< _pq.isEnabled(0)<<"),"<< _pq.size(1)<< "("<<_pq.isEnabled(1) << ")), (" <<improved_balance_less_equal_cut << "," << improved_cut_within_balance<<")");*/
       ++num_moves_since_last_improvement;
       if (improved_cut_within_balance || improved_balance_less_equal_cut) {
         DBG(dbg_refinement_2way_advanced_fm_improvements_balance && max_gain == 0,

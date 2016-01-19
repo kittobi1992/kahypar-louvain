@@ -2,8 +2,8 @@
  *  Copyright (C) 2014 Sebastian Schlag <sebastian.schlag@kit.edu>
  **************************************************************************/
 
-#ifndef SRC_PARTITION_REFINEMENT_TWOWAYFMREFINER_H_
-#define SRC_PARTITION_REFINEMENT_TWOWAYFMREFINER_H_
+#ifndef SRC_PARTITION_REFINEMENT_TWOWAYADVANCEDTRANSISTIONFMREFINER_H_
+#define SRC_PARTITION_REFINEMENT_TWOWAYADVANCEDTRANSISTIONFMREFINER_H_
 
 #include <algorithm>
 #include <array>
@@ -11,6 +11,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <set>
 
 #include "gtest/gtest_prod.h"
 
@@ -39,33 +40,37 @@ using defs::PartitionID;
 using defs::HyperedgeWeight;
 using defs::HypernodeWeight;
 using defs::IncidenceIterator;
+using AdvancedGain = double;
+
+#define EPS 1e-4
 
 namespace partition {
-static const bool dbg_refinement_2way_fm_improvements_cut = false;
-static const bool dbg_refinement_2way_fm_improvements_balance = false;
-static const bool dbg_refinement_2way_fm_stopping_crit = false;
-static const bool dbg_refinement_2way_fm_gain_update = false;
-static const bool dbg_refinement_2way_fm__activation = false;
-static const bool dbg_refinement_2way_locked_hes = false;
+static const bool dbg_refinement_2way_advanced_transition_fm_improvements_cut = false;
+static const bool dbg_refinement_2way_advanced_transistion_fm_improvements_balance = false;
+static const bool dbg_refinement_2way_advanced_transistion_fm_stopping_crit = false;
+static const bool dbg_refinement_2way_advanced_transistion_fm_gain_update = false;
+static const bool dbg_refinement_2way_advanced_transistion_fm_activation = false;
+static const bool dbg_refinement_2way_advanced_transistion_locked_hes = false;
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Weffc++"
 template <class StoppingPolicy = Mandatory,
           class FMImprovementPolicy = CutDecreasedOrInfeasibleImbalanceDecreased>
-class TwoWayFMRefiner final : public IRefiner,
+class TwoWayAdvancedTransistionFMRefiner final : public IRefiner,
                               private FMRefinerBase {
  private:
-  using KWayRefinementPQ = KWayPriorityQueue<HypernodeID, HyperedgeWeight,
-                                             std::numeric_limits<HyperedgeWeight> >;
+  using KWayRefinementPQ = KWayPriorityQueue<HypernodeID, AdvancedGain,
+                                             std::numeric_limits<AdvancedGain> >;
 
   static constexpr char kLocked = std::numeric_limits<char>::max();
   static const char kFree = std::numeric_limits<char>::max() - 1;
-  static constexpr Gain kNotCached = std::numeric_limits<Gain>::max();
+  const AdvancedGain kNotCached = std::numeric_limits<AdvancedGain>::max();
 
  public:
-  TwoWayFMRefiner(Hypergraph& hypergraph, const Configuration& config) noexcept :
+  TwoWayAdvancedTransistionFMRefiner(Hypergraph& hypergraph, const Configuration& config) noexcept :
     FMRefinerBase(hypergraph, config),
     _pq(2),
+    _last_uncontraction_pair(_hg.initialNumNodes()+1,_hg.initialNumNodes()+1),
     _he_fully_active(_hg.initialNumEdges(), false),
     _hns_in_activation_vector(_hg.initialNumNodes(), false),
     _performed_moves(),
@@ -81,13 +86,13 @@ class TwoWayFMRefiner final : public IRefiner,
     _delta_gain_support = true;
   }
 
-  virtual ~TwoWayFMRefiner() { }
+  virtual ~TwoWayAdvancedTransistionFMRefiner() { }
 
-  TwoWayFMRefiner(const TwoWayFMRefiner&) = delete;
-  TwoWayFMRefiner& operator= (const TwoWayFMRefiner&) = delete;
+  TwoWayAdvancedTransistionFMRefiner(const TwoWayAdvancedTransistionFMRefiner&) = delete;
+  TwoWayAdvancedTransistionFMRefiner& operator= (const TwoWayAdvancedTransistionFMRefiner&) = delete;
 
-  TwoWayFMRefiner(TwoWayFMRefiner&&) = delete;
-  TwoWayFMRefiner& operator= (TwoWayFMRefiner&&) = delete;
+  TwoWayAdvancedTransistionFMRefiner(TwoWayAdvancedTransistionFMRefiner&&) = delete;
+  TwoWayAdvancedTransistionFMRefiner& operator= (TwoWayAdvancedTransistionFMRefiner&&) = delete;
 
   void activate(const HypernodeID hn,
                 const std::array<HypernodeWeight, 2>& max_allowed_part_weights) noexcept {
@@ -96,15 +101,23 @@ class TwoWayFMRefiner final : public IRefiner,
       ASSERT(!_hg.marked(hn), "Hypernode" << hn << " is already marked");
       ASSERT(!_pq.contains(hn, 1 - _hg.partID(hn)),
              "HN " << hn << " is already contained in PQ " << 1 - _hg.partID(hn));
-      DBG(dbg_refinement_2way_fm__activation, "inserting HN " << hn << " with gain " << computeGain(hn)
+      DBG(dbg_refinement_2way_advanced_transistion_fm_activation, "inserting HN " << hn << " with gain " << computeGain(hn)
           << " in PQ " << 1 - _hg.partID(hn));
 
       if (_gain_cache[hn] == kNotCached) {
         _gain_cache[hn] = computeGain(hn);
       }
-      ASSERT(_gain_cache[hn] == computeGain(hn),
-             V(hn) << V(_gain_cache[hn]) << V(computeGain(hn)));
-      _pq.insert(hn, 1 - _hg.partID(hn), _gain_cache[hn]);
+      AdvancedGain gain = _gain_cache[hn];
+      for(HyperedgeID he : _hg.incidentEdges(hn)) {
+	if(_locked_hes.get(he) == kLocked) {
+	  gain = computeGain(hn);
+	  break;
+	}
+      }
+      
+      ASSERT(fabs(gain - computeGain(hn)) <= EPS,
+             V(hn) << V(gain) << V(computeGain(hn)));
+      _pq.insert(hn, 1 - _hg.partID(hn),gain);
       if (_hg.partWeight(1 - _hg.partID(hn)) < max_allowed_part_weights[1 - _hg.partID(hn)]) {
         _pq.enablePart(1 - _hg.partID(hn));
       }
@@ -119,32 +132,9 @@ class TwoWayFMRefiner final : public IRefiner,
   }
 
  private:
-  FRIEND_TEST(ATwoWayFMRefiner, IdentifiesBorderHypernodes);
-  FRIEND_TEST(ATwoWayFMRefiner, ComputesPartitionSizesOfHE);
-  FRIEND_TEST(ATwoWayFMRefiner, ChecksIfPartitionSizesOfHEAreAlreadyCalculated);
-  FRIEND_TEST(ATwoWayFMRefiner, ComputesGainOfHypernodeMovement);
-  FRIEND_TEST(ATwoWayFMRefiner, ActivatesBorderNodes);
-  FRIEND_TEST(ATwoWayFMRefiner, CalculatesNodeCountsInBothPartitions);
-  FRIEND_TEST(ATwoWayFMRefiner, UpdatesNodeCountsOnNodeMovements);
-  FRIEND_TEST(AGainUpdateMethod, RespectsPositiveGainUpdateSpecialCaseForHyperedgesOfSize2);
-  FRIEND_TEST(AGainUpdateMethod, RespectsNegativeGainUpdateSpecialCaseForHyperedgesOfSize2);
-  // TODO(schlag): find better names for testcases
-  FRIEND_TEST(AGainUpdateMethod, HandlesCase0To1);
-  FRIEND_TEST(AGainUpdateMethod, HandlesCase1To0);
-  FRIEND_TEST(AGainUpdateMethod, HandlesCase2To1);
-  FRIEND_TEST(AGainUpdateMethod, HandlesCase1To2);
-  FRIEND_TEST(AGainUpdateMethod, HandlesSpecialCaseOfHyperedgeWith3Pins);
-  FRIEND_TEST(AGainUpdateMethod, ActivatesUnmarkedNeighbors);
-  FRIEND_TEST(AGainUpdateMethod, RemovesNonBorderNodesFromPQ);
-  FRIEND_TEST(ATwoWayFMRefiner, UpdatesPartitionWeightsOnRollBack);
-  FRIEND_TEST(AGainUpdateMethod, DoesNotDeleteJustActivatedNodes);
-  FRIEND_TEST(ARefiner, DoesNotDeleteMaxGainNodeInPQ0IfItChoosesToUseMaxGainNodeInPQ1);
-  FRIEND_TEST(ARefiner, ChecksIfMovePreservesBalanceConstraint);
-  FRIEND_TEST(ATwoWayFMRefinerDeathTest, ConsidersSingleNodeHEsDuringInitialGainComputation);
-  FRIEND_TEST(ATwoWayFMRefiner, KnowsIfAHyperedgeIsFullyActive);
 
 #ifdef USE_BUCKET_PQ
-  void initializeImpl(const HyperedgeWeight max_gain) noexcept override final {
+  void initializeImpl(const AdvancedGain max_gain) noexcept override final {
     if (!_is_initialized) {
       _pq.initialize(_hg.initialNumNodes(), max_gain);
       _is_initialized = true;
@@ -177,22 +167,16 @@ class TwoWayFMRefiner final : public IRefiner,
     _he_fully_active.resetAllBitsToFalse();
     _locked_hes.resetUsedEntries();
 
-    // Will always be the case in the first FM pass, since the just uncontracted HN
-    // was not seen before.
-    if (_gain_cache[refinement_nodes[1]] == kNotCached) {
-      // In further FM passes, changes will be set to 0 by the caller.
-      if (_gain_cache[refinement_nodes[0]] != kNotCached) {
-        _gain_cache[refinement_nodes[1]] = _gain_cache[refinement_nodes[0]] + changes.second;
-        _gain_cache[refinement_nodes[0]] += changes.first;
-      }
-    }
-    
-    //activateNeighbors(refinement_nodes[0],max_allowed_part_weights);
-    //activateNeighbors(refinement_nodes[1],max_allowed_part_weights);
-
+    //Update Gain-Cache
+    updateGainCacheAfterUncontraction(refinement_nodes[0],refinement_nodes[1]);
     Randomize::shuffleVector(refinement_nodes, num_refinement_nodes);
-    for (size_t i = 0; i < num_refinement_nodes; ++i) {
+    activateNeighbors(refinement_nodes[0],max_allowed_part_weights);
+    activateNeighbors(refinement_nodes[1],max_allowed_part_weights);
+
+   /*
+   for (size_t i = 0; i < num_refinement_nodes; ++i) {
       activate(refinement_nodes[i], max_allowed_part_weights);
+
 
       // If Lmax0==Lmax1, then all border nodes should be active. However, if Lmax0 != Lmax1,
       // because k!=2^x or we intend to further partition the hypergraph into unequal number of
@@ -201,11 +185,11 @@ class TwoWayFMRefiner final : public IRefiner,
       ASSERT((_config.partition.max_part_weights[0] != _config.partition.max_part_weights[1]) ||
              (!_hg.isBorderNode(refinement_nodes[i]) ||
               _pq.isEnabled(_hg.partID(refinement_nodes[i]) ^ 1)), V(refinement_nodes[i]));
-    }
-
+    }*/
+    
     ASSERT([&]() {
         for (const HypernodeID hn : _hg.nodes()) {
-          if (_gain_cache[hn] != kNotCached && _gain_cache[hn] != computeGain(hn)) {
+          if (_gain_cache[hn] != kNotCached && fabs(_gain_cache[hn] - computeGain(hn)) > EPS) {
             LOGVAR(hn);
             LOGVAR(_gain_cache[hn]);
             LOGVAR(computeGain(hn));
@@ -220,6 +204,7 @@ class TwoWayFMRefiner final : public IRefiner,
     HyperedgeWeight current_cut = best_cut;
     double current_imbalance = best_imbalance;
 
+
     int min_cut_index = -1;
     int num_moves = 0;
     int num_moves_since_last_improvement = 0;
@@ -230,7 +215,7 @@ class TwoWayFMRefiner final : public IRefiner,
                                                               _config, beta, best_cut, current_cut)) {
       ASSERT(_pq.isEnabled(0) || _pq.isEnabled(1), "No PQ enabled");
 
-      Gain max_gain = kInvalidGain;
+      AdvancedGain max_gain = kInvalidGain;
       HypernodeID max_gain_node = kInvalidHN;
       PartitionID to_part = Hypergraph::kInvalidPartition;
       _pq.deleteMax(max_gain_node, max_gain, to_part);
@@ -241,46 +226,32 @@ class TwoWayFMRefiner final : public IRefiner,
           << " target_part=" << to_part);
       ASSERT(!_hg.marked(max_gain_node),
              "HN " << max_gain_node << "is marked and not eligable to be moved");
-      ASSERT(max_gain == computeGain(max_gain_node), "Inconsistent gain caculation: " <<
+      ASSERT(fabs(max_gain-computeGain(max_gain_node)) <= EPS, "Inconsistent gain caculation: " <<
              "expected g(" << max_gain_node << ")=" << computeGain(max_gain_node) <<
              " - got g(" << max_gain_node << ")=" << max_gain);
       ASSERT(_hg.isBorderNode(max_gain_node), "HN " << max_gain_node << "is no border node");
-      ASSERT([&]() {
-          _hg.changeNodePart(max_gain_node, from_part, to_part);
-          ASSERT((current_cut - max_gain) == metrics::hyperedgeCut(_hg),
-                 "cut=" << current_cut - max_gain << "!=" << metrics::hyperedgeCut(_hg));
-          _hg.changeNodePart(max_gain_node, to_part, from_part);
-          return true;
-        } (), "max_gain move does not correspond to expected cut!");
-
 
       DBG(dbg_refinement_kway_fm_move, "moving HN" << max_gain_node << " from " << from_part
           << " to " << to_part << " (weight=" << _hg.nodeWeight(max_gain_node) << ")");
-
       _hg.changeNodePart(max_gain_node, from_part, to_part, _non_border_hns_to_remove);
       _hg.mark(max_gain_node);
-
+ 
       if (_hg.partWeight(to_part) >= max_allowed_part_weights[to_part]) {
-        _pq.disablePart(to_part);
+	_pq.disablePart(to_part);
       }
       if (_hg.partWeight(from_part) < max_allowed_part_weights[from_part]) {
         _pq.enablePart(from_part);
       }
-
+      
       current_imbalance = metrics::imbalance(_hg, _config);
 
+      Gain fm_gain = updateNeighbours(max_gain_node, from_part, to_part, max_allowed_part_weights);
+      
       HyperedgeWeight old_cut = current_cut;
-      current_cut -= max_gain;
-      _stopping_policy.updateStatistics(max_gain);
-      /*LOG(max_gain << ", Old Cut: " << old_cut << ", Current Cut: " << current_cut  
-		    << ", HN: " << max_gain_node <<" " << (1-_hg.partID(max_gain_node)) << " -> " << _hg.partID(max_gain_node)
-		    << ", Part Weights: (" << _hg.partWeight(0) << "/" << max_allowed_part_weights[0] << "," 
-		    << _hg.partWeight(1) << "/" << max_allowed_part_weights[1]<< "), "
-		    << " PQ: (" << _pq.size(0) << "("<< _pq.isEnabled(0)<<"),"<< _pq.size(1)<< "("<<_pq.isEnabled(1) << "))");*/
+      current_cut -= fm_gain;
+      _stopping_policy.updateStatistics(old_cut-current_cut);
       ASSERT(current_cut == metrics::hyperedgeCut(_hg),
              V(current_cut) << V(metrics::hyperedgeCut(_hg)));
-
-      updateNeighbours(max_gain_node, from_part, to_part, max_allowed_part_weights);
 
       // right now, we do not allow a decrease in cut in favor of an increase in balance
       const bool improved_cut_within_balance = (current_cut < best_cut) &&
@@ -290,12 +261,19 @@ class TwoWayFMRefiner final : public IRefiner,
                                                 <= _config.partition.max_part_weights[1]);
       const bool improved_balance_less_equal_cut = (current_imbalance < best_imbalance) &&
                                                    (current_cut <= best_cut);
+						   
+     /*LOG(fm_gain << " vs. " << max_gain << ", Old Cut: " << old_cut << ", Current Cut: " << current_cut  
+	  << ", Best Cut: " <<best_cut<<", " << (1-_hg.partID(max_gain_node)) << " -> " << _hg.partID(max_gain_node)
+	  << ", Part Weights: (" << (_hg.partWeight(0) <= _config.partition.max_part_weights[0]) << "," 
+	  << (_hg.partWeight(1) <= _config.partition.max_part_weights[1])<< "), "
+	  << " PQ: (" << _pq.size(0) << "("<< _pq.isEnabled(0)<<"),"<< _pq.size(1)<< "("<<_pq.isEnabled(1) << ")), (" <<improved_balance_less_equal_cut << "," << improved_cut_within_balance<<")");*/
+     
       ++num_moves_since_last_improvement;
       if (improved_cut_within_balance || improved_balance_less_equal_cut) {
-        DBG(dbg_refinement_2way_fm_improvements_balance && max_gain == 0,
+        DBG(dbg_refinement_2way_advanced_transistion_fm_improvements_balance && max_gain == 0,
             "2WayFM improved balance between " << from_part << " and " << to_part
             << "(max_gain=" << max_gain << ")");
-        DBG(dbg_refinement_2way_fm_improvements_cut && current_cut < best_cut,
+        DBG(dbg_refinement_2way_advanced_transition_fm_improvements_cut && current_cut < best_cut,
             "2WayFM improved cut from " << best_cut << " to " << current_cut);
         best_cut = current_cut;
         best_imbalance = current_imbalance;
@@ -308,7 +286,7 @@ class TwoWayFMRefiner final : public IRefiner,
       ++num_moves;
     }
 
-    DBG(dbg_refinement_2way_fm_stopping_crit, "KWayFM performed " << num_moves
+    DBG(dbg_refinement_2way_advanced_transistion_fm_stopping_crit, "KWayFM performed " << num_moves
         << " local search movements ( min_cut_index=" << min_cut_index << "): stopped because of "
         << (_stopping_policy.searchShouldStop(num_moves_since_last_improvement, _config, beta,
                                               best_cut, current_cut)
@@ -316,11 +294,13 @@ class TwoWayFMRefiner final : public IRefiner,
 
     rollback(num_moves - 1, min_cut_index);
     _rollback_delta_cache.resetUsedEntries(_gain_cache);
-
+    _locked_hes.resetUsedEntries();
+    
     ASSERT([&]() {
         for (HypernodeID hn = 0; hn < _gain_cache.size(); ++hn) {
-          if (_gain_cache[hn] != kNotCached && _gain_cache[hn] != computeGain(hn)) {
+          if (_gain_cache[hn] != kNotCached && fabs(_gain_cache[hn] - computeGain(hn)) > EPS) {
             LOGVAR(hn);
+	    LOGVAR(kNotCached);
             LOGVAR(_gain_cache[hn]);
             LOGVAR(computeGain(hn));
             return false;
@@ -344,39 +324,39 @@ class TwoWayFMRefiner final : public IRefiner,
                                                  initial_imbalance, _config.partition.epsilon);
   }
 
-  void updateNeighbours(const HypernodeID moved_hn, const PartitionID from_part,
+  Gain updateNeighbours(const HypernodeID moved_hn, const PartitionID from_part,
                         const PartitionID to_part,
                         const std::array<HypernodeWeight, 2>& max_allowed_part_weights) {
-    const Gain temp = _gain_cache[moved_hn];
-    const Gain rb_delta = _rollback_delta_cache.get(moved_hn);
+    const AdvancedGain temp = _gain_cache[moved_hn];
+    const AdvancedGain rb_delta = _rollback_delta_cache.get(moved_hn);
     _gain_cache[moved_hn] = kNotCached;
+    AdvancedGain delta_moved_hn = 0.0;
+    Gain fm_gain = 0;
     for (const HyperedgeID he : _hg.incidentEdges(moved_hn)) {
-      if (_locked_hes.get(he) != kLocked) {
-        if (_locked_hes.get(he) == to_part) {
-          // he is loose
-          deltaUpdate(from_part, to_part, he);
-          DBG(dbg_refinement_2way_locked_hes, "HE " << he << " maintained state: loose");
-        } else if (_locked_hes.get(he) == kFree) {
-          // he is free.
-          fullUpdate(from_part, to_part, he);
-          _locked_hes.set(he, to_part);
-          DBG(dbg_refinement_2way_locked_hes, "HE " << he << " changed state: free -> loose");
-        } else {
-          // he is loose and becomes locked after the move
-          fullUpdate(from_part, to_part, he);
-          _locked_hes.uncheckedSet(he, kLocked);
-          DBG(dbg_refinement_2way_locked_hes, "HE " << he << " changed state: loose -> locked");
-        }
+      const HypernodeID pins_in_source_part_before = _hg.pinCountInPart(he,from_part)+1;
+      const HypernodeID pins_in_target_part_before = _hg.pinCountInPart(he,to_part)-1;
+      
+      if(_hg.connectivity(he) == 1 && pins_in_source_part_before == 1) {
+	fm_gain += _hg.edgeWeight(he);
+      } else if(_hg.connectivity(he) > 1 && pins_in_target_part_before == 0) {
+	fm_gain -= _hg.edgeWeight(he);
+      }
+      
+      delta_moved_hn += 2.0*static_cast<double>(_hg.edgeWeight(he))*(static_cast<double>(pins_in_target_part_before)
+			   -static_cast<double>(pins_in_source_part_before - 1.0))/static_cast<double>(_hg.edgeSize(he)-1);
+      if(_locked_hes.get(he) == kFree || _locked_hes.get(he) == to_part) {
+	fullUpdate(from_part, to_part, he);
+	_locked_hes.set(he,to_part);
+      } else if(_locked_hes.get(he) == from_part) { 
+	removeGainFromPins(from_part,to_part,he);
+	deltaUpdateForCache(from_part,to_part,he);
+	_locked_hes.uncheckedSet(he,kLocked);
       } else {
-        // he is locked
-        // In case of 2-FM, nothing to do here except keeping the cache up to date
-        deltaUpdateForCache(from_part, to_part, he);
-        DBG(dbg_refinement_2way_locked_hes, he << " is locked");
+	deltaUpdateForCache(from_part,to_part,he);
       }
     }
-
-    _gain_cache[moved_hn] = -temp;
-    _rollback_delta_cache.set(moved_hn, rb_delta + 2 * temp);
+    _gain_cache[moved_hn] = temp - delta_moved_hn;
+    _rollback_delta_cache.set(moved_hn, rb_delta + delta_moved_hn);
 
     for (const HypernodeID hn : _hns_to_activate) {
       ASSERT(!_hg.active(hn), V(hn));
@@ -394,7 +374,7 @@ class TwoWayFMRefiner final : public IRefiner,
     // in fullUpdate, which significantly reduces the running time for large hypergraphs like
     // kkt_power.
     for (const HypernodeID hn : _non_border_hns_to_remove) {
-      DBG(dbg_refinement_2way_fm_gain_update, "TwoWayFM deleting pin " << hn << " from PQ "
+      DBG(dbg_refinement_2way_advanced_transistion_fm_gain_update, "TwoWayFM deleting pin " << hn << " from PQ "
           << to_part);
       ASSERT([&]() {
           if (hn != moved_hn) {
@@ -432,7 +412,7 @@ class TwoWayFMRefiner final : public IRefiner,
                 ASSERT(_hg.active(pin), "HN " << pin << " is in PQ but not active");
                 ASSERT(!_hg.marked(pin),
                        "HN " << pin << " should not be in PQ, because it is already marked");
-                if (_pq.key(pin, other_part) != computeGain(pin)) {
+                if (fabs(_pq.key(pin, other_part)-computeGain(pin)) > EPS) {
                   LOG("Incorrect gain for HN " << pin);
                   LOG("expected key=" << computeGain(pin));
                   LOG("actual key=" << _pq.key(pin, other_part));
@@ -440,37 +420,46 @@ class TwoWayFMRefiner final : public IRefiner,
                   LOG("to part = " << other_part);
                   return false;
                 }
-              } else if (!_hg.marked(pin)) {
+              } else if (!_hg.marked(pin) && _locked_hes.get(he) != kLocked) {
                 LOG("HN " << pin << " not in PQ, but also not marked!");
                 return false;
               }
             }
-            if (_gain_cache[pin] != kNotCached && _gain_cache[pin] != computeGain(pin)) {
+            /*if (_gain_cache[pin] != kNotCached && fabs(_gain_cache[pin] - computeGain(pin)) > EPS) {
               LOG("GainCache invalid after UpdateNeighbours");
               LOGVAR(pin);
               LOGVAR(_gain_cache[pin]);
               LOGVAR(computeGain(pin));
               return false;
-            }
+            }*/
           }
         }
         return true;
       } (), "UpdateNeighbors failed!");
+    
+    /*for (const HyperedgeID he : _hg.incidentEdges(moved_hn)) {
+      for(const HypernodeID pin : _hg.pins(he)) {
+	if(!_hg.marked(pin) && _hg.active(pin) && abs(computeGain(pin)-_pq.key(pin,_hg.partID(pin) ^ 1)) > 10e-6)
+	  LOG(computeGain(pin) << " != " << _pq.key(pin,_hg.partID(pin) ^ 1));
+      }
+    }*/
 
     ASSERT((!_pq.empty(0) && _hg.partWeight(0) < max_allowed_part_weights[0] ?
             _pq.isEnabled(0) : !_pq.isEnabled(0)), V(0));
     ASSERT((!_pq.empty(1) && _hg.partWeight(1) < max_allowed_part_weights[1] ?
             _pq.isEnabled(1) : !_pq.isEnabled(1)), V(1));
+
+    return fm_gain;
   }
 
-  void updateGainCache(const HypernodeID pin, const Gain gain_delta) noexcept __attribute__ ((always_inline)) {
+  void updateGainCache(const HypernodeID pin, const AdvancedGain gain_delta) noexcept __attribute__ ((always_inline)) {
     _rollback_delta_cache.update(pin, -gain_delta);
     _gain_cache[pin] += (_gain_cache[pin] != kNotCached ? gain_delta : 0);
   }
 
-  void performNonZeroFullUpdate(const HypernodeID pin, const Gain gain_delta,
-                                HypernodeID& num_active_pins) noexcept __attribute__ ((always_inline)) {
-    ASSERT(gain_delta != 0, " No 0-delta gain updates allowed");
+  void performNonZeroFullUpdate(const HypernodeID pin, const AdvancedGain gain_delta,
+                                HypernodeID& num_active_pins, bool updateCache = true) noexcept __attribute__ ((always_inline)) {
+    //ASSERT(gain_delta != 0, " No 0-delta gain updates allowed");
     if (!_hg.marked(pin)) {
       if (!_hg.active(pin)) {
         if (!_hns_in_activation_vector[pin]) {
@@ -480,12 +469,14 @@ class TwoWayFMRefiner final : public IRefiner,
           _hns_in_activation_vector.setBit(pin, true);
         }
       } else {
-        updatePin(pin, gain_delta);
+        updatePin(pin, gain_delta,updateCache);
         ++num_active_pins;
         return;    // caching is done in updatePin in this case
       }
     }
-    updateGainCache(pin, gain_delta);
+    if(updateCache) {
+      updateGainCache(pin, gain_delta);
+    }
   }
 
   // Full update includes:
@@ -495,142 +486,52 @@ class TwoWayFMRefiner final : public IRefiner,
   // This is used for the state transitions: free -> loose and loose -> locked
   void fullUpdate(const PartitionID from_part,
                   const PartitionID to_part, const HyperedgeID he) noexcept {
-    const HypernodeID pin_count_from_part_after_move = _hg.pinCountInPart(he, from_part);
-    const HypernodeID pin_count_to_part_after_move = _hg.pinCountInPart(he, to_part);
-
-    const bool he_became_cut_he = pin_count_to_part_after_move == 1;
-    const bool he_became_internal_he = pin_count_from_part_after_move == 0;
-    const bool increase_necessary = pin_count_from_part_after_move == 1;
-    const bool decrease_necessary = pin_count_to_part_after_move == 2;
-
-    if (he_became_cut_he || he_became_internal_he || increase_necessary ||
-        decrease_necessary || !_he_fully_active[he]) {
-      ASSERT(_hg.edgeSize(he) != 1, V(he));
-      const HyperedgeWeight he_weight = _hg.edgeWeight(he);
-      HypernodeID num_active_pins = 1;  // because moved_hn was active
-
-      if (_hg.edgeSize(he) == 2) {
-        for (const HypernodeID pin : _hg.pins(he)) {
-          performNonZeroFullUpdate(pin, (_hg.partID(pin) == from_part ? 2 : -2) * he_weight,
-                                   num_active_pins);
-        }
-      } else if (he_became_cut_he) {
-        // HE was an internal edge before move and is a cut HE now.
-        // Before the move, all pins had gain -w(e). Now after the move,
-        // these pins have gain 0 (since all of them are in from_part).
-        for (const HypernodeID pin : _hg.pins(he)) {
-          performNonZeroFullUpdate(pin, he_weight, num_active_pins);
-        }
-      } else if (he_became_internal_he) {
-        // HE was cut HE before move and is internal HE now.
-        // Since the HE is now internal, moving a pin incurs gain -w(e)
-        // and make it a cut HE again.
-        for (const HypernodeID pin : _hg.pins(he)) {
-          performNonZeroFullUpdate(pin, -he_weight, num_active_pins);
-        }
-      } else {
-        for (const HypernodeID pin : _hg.pins(he)) {
-          // factor is unfortunately necessary because we need to iterate over all pins
-          // since we night find new nodes for activation.
-
-          // Before move, there were two pins (moved_node and the current pin) in from_part.
-          // After moving moved_node to to_part, the gain of the remaining pin in
-          // from_part increases by w(he).
-          Gain factor = _hg.partID(pin) == from_part && increase_necessary ? 1 : 0;
-          // Before move, pin was the only HN in to_part. It thus had a
-          // positive gain, because moving it to from_part would have removed
-          // the HE from the cut. Now, after the move, pin becomes a 0-gain HN
-          // because now there are pins in both parts.
-          factor = _hg.partID(pin) != from_part && decrease_necessary ? -1 : factor;
-          if (!_hg.marked(pin)) {
-            if (!_hg.active(pin)) {
-              if (!_hns_in_activation_vector[pin]) {
-                ASSERT(!_pq.contains(pin, (_hg.partID(pin) ^ 1)), V(pin) << V((_hg.partID(pin) ^ 1)));
-                ++num_active_pins;  // since we do lazy activation!
-                _hns_to_activate.push_back(pin);
-                _hns_in_activation_vector.setBit(pin, true);
-              }
-            } else {
-              if (factor != 0) {
-                updatePin(pin, factor * he_weight);
-              }
-              ++num_active_pins;
-              continue;    // caching is done in updatePin in this case
-            }
-          }
-          if (factor != 0) {
-            updateGainCache(pin, factor * he_weight);
-          }
-        }
-      }
-      _he_fully_active.setBit(he, (_hg.edgeSize(he) == num_active_pins));
+    HypernodeID num_active_pins = 1;
+    const double he_weight = static_cast<double>(_hg.edgeWeight(he));
+    const double he_size = static_cast<double>(_hg.edgeSize(he));
+    for(HypernodeID pin : _hg.pins(he)) {
+      performNonZeroFullUpdate(pin,(_hg.partID(pin) == from_part ? 1.0 : -1.0)*
+				    (2.0*(he_weight/(he_size-1.0))),num_active_pins);
     }
+    _he_fully_active.setBit(he, (_hg.edgeSize(he) == num_active_pins));
+  }
+  
+  void removeGainFromPins(const PartitionID from_part,
+                  const PartitionID to_part, const HyperedgeID he) noexcept {
+    HypernodeID num_active_pins = 1;
+    const double pins_in_source_part_before = static_cast<double>(_hg.pinCountInPart(he,from_part)+1);
+    const double pins_in_target_part_before = static_cast<double>(_hg.pinCountInPart(he,to_part)-1);
+    const double he_weight = static_cast<double>(_hg.edgeWeight(he));
+    const double he_size = static_cast<double>(_hg.edgeSize(he));
+    for(HypernodeID pin : _hg.pins(he)) {
+	double old_gain = 0.0;
+	const PartitionID source_part = _hg.partID(pin);
+	if(source_part == from_part) {
+	  old_gain = he_weight*(1.0+pins_in_target_part_before-pins_in_source_part_before)/(he_size-1.0);
+	}
+	else {
+	  old_gain = he_weight*(1.0+pins_in_source_part_before-pins_in_target_part_before)/(he_size-1.0);
+	}
+	performNonZeroFullUpdate(pin,-old_gain,num_active_pins,false);
+    }
+    _he_fully_active.setBit(he, (_hg.edgeSize(he) == num_active_pins));
   }
 
   // Delta-Gain Update as decribed in [ParMar06].
   // Removal of new non-border HNs is performed lazily after all updates
   // This is used for the state transition: loose -> loose
   void deltaUpdate(const PartitionID from_part,
-                   const PartitionID to_part, const HyperedgeID he) noexcept {
-    const HypernodeID pin_count_from_part_after_move = _hg.pinCountInPart(he, from_part);
-    const HypernodeID pin_count_to_part_after_move = _hg.pinCountInPart(he, to_part);
-
-    const bool he_became_cut_he = pin_count_to_part_after_move == 1;
-    const bool he_became_internal_he = pin_count_from_part_after_move == 0;
-    const bool increase_necessary = pin_count_from_part_after_move == 1;
-    const bool decrease_necessary = pin_count_to_part_after_move == 2;
-
-    if (he_became_cut_he || he_became_internal_he || increase_necessary ||
-        decrease_necessary) {
-      ASSERT(_hg.edgeSize(he) != 1, V(he));
-      const HyperedgeWeight he_weight = _hg.edgeWeight(he);
-
-      if (_hg.edgeSize(he) == 2) {
-        for (const HypernodeID pin : _hg.pins(he)) {
-          const char factor = (_hg.partID(pin) == from_part ? 2 : -2);
-          if (!_hg.marked(pin)) {
-            updatePin(pin, factor * he_weight);
-            continue;      // caching is done in updatePin in this case
-          }
-          updateGainCache(pin, factor * he_weight);
-        }
-      } else if (he_became_cut_he) {
-        for (const HypernodeID pin : _hg.pins(he)) {
-          if (!_hg.marked(pin)) {
-            updatePin(pin, he_weight);
-            continue;      // caching is done in updatePin in this case
-          }
-          updateGainCache(pin, he_weight);
-        }
-      } else if (he_became_internal_he) {
-        for (const HypernodeID pin : _hg.pins(he)) {
-          if (!_hg.marked(pin)) {
-            updatePin(pin, -he_weight);
-            continue;      // caching is done in updatePin in this case
-          }
-          updateGainCache(pin, -he_weight);
-        }
-      } else {
-        for (const HypernodeID pin : _hg.pins(he)) {
-          if (_hg.partID(pin) == from_part) {
-            if (increase_necessary) {
-              if (!_hg.marked(pin)) {
-                updatePin(pin, he_weight);
-                // break;      // caching is done in updatePin in this case
-              } else {
-                updateGainCache(pin, he_weight);
-              }
-            }
-          } else if (decrease_necessary) {
-            if (!_hg.marked(pin)) {
-              updatePin(pin, -he_weight);
-              // break;    // caching is done in updatePin in this case
-            } else {
-              updateGainCache(pin, -he_weight);
-            }
-          }
-        }
+                   const PartitionID to_part, const HyperedgeID he) noexcept {     
+    const double he_weight = static_cast<double>(_hg.edgeWeight(he));
+    const double he_size = static_cast<double>(_hg.edgeSize(he));
+    for(HypernodeID pin : _hg.pins(he)) {
+      AdvancedGain delta_gain = (_hg.partID(pin) == from_part ? 1.0 : -1.0)*
+				    (2.0*(he_weight/(he_size-1.0)));
+      if(!_hg.marked(pin)) {
+	updatePin(pin,delta_gain);
+	continue;
       }
+      updateGainCache(pin, delta_gain);
     }
   }
 
@@ -638,34 +539,12 @@ class TwoWayFMRefiner final : public IRefiner,
   // LOCKED HE delta update for cache of moved HNs
   void deltaUpdateForCache(const PartitionID from_part,
                            const PartitionID to_part, const HyperedgeID he) noexcept {
-    const HypernodeID pin_count_from_part_after_move = _hg.pinCountInPart(he, from_part);
-    const HypernodeID pin_count_to_part_after_move = _hg.pinCountInPart(he, to_part);
-
-    const bool increase_necessary = pin_count_from_part_after_move == 1;
-    const bool decrease_necessary = pin_count_to_part_after_move == 2;
-    ASSERT(pin_count_to_part_after_move != 1, V(he));  // he should not have become cut he
-    ASSERT(pin_count_from_part_after_move != 0, V(he));  // he should not have become internal he
-
-    if (increase_necessary || decrease_necessary) {
-      ASSERT(_hg.edgeSize(he) != 1, V(he));
-      const HyperedgeWeight he_weight = _hg.edgeWeight(he);
-
-      if (_hg.edgeSize(he) == 2) {
-        for (const HypernodeID pin : _hg.pins(he)) {
-          const char factor = (_hg.partID(pin) == from_part ? 2 : -2);
-          updateGainCache(pin, factor * he_weight);
-        }
-      } else {
-        for (const HypernodeID pin : _hg.pins(he)) {
-          if (_hg.partID(pin) == from_part) {
-            if (increase_necessary) {
-              updateGainCache(pin, he_weight);
-            }
-          } else if (decrease_necessary) {
-            updateGainCache(pin, -he_weight);
-          }
-        }
-      }
+    const double he_weight = static_cast<double>(_hg.edgeWeight(he));
+    const double he_size = static_cast<double>(_hg.edgeSize(he));
+    for(HypernodeID pin : _hg.pins(he)) {
+      AdvancedGain delta_gain = (_hg.partID(pin) == from_part ? 1.0 : -1.0)*
+				    (2.0*(he_weight/(he_size-1.0)));
+      updateGainCache(pin, delta_gain);
     }
   }
 
@@ -684,22 +563,24 @@ class TwoWayFMRefiner final : public IRefiner,
 #endif
   }
 
-  void updatePin(const HypernodeID pin, const Gain gain_delta) noexcept __attribute__ ((always_inline)) {
+  void updatePin(const HypernodeID pin, const AdvancedGain gain_delta, bool updateCache = true) noexcept __attribute__ ((always_inline)) {
     const PartitionID target_part = _hg.partID(pin) ^ 1;
     ASSERT(_hg.active(pin), V(pin) << V(target_part));
     ASSERT(_pq.contains(pin, target_part), V(pin) << V(target_part));
-    ASSERT(gain_delta != 0, V(gain_delta));
+    //ASSERT(gain_delta != 0, V(gain_delta));
     ASSERT(!_hg.marked(pin),
            " Trying to update marked HN " << pin << " in PQ " << target_part);
     // New version actually updates them but removes them afterwards at the end of updateNeighbours
     // ASSERT(_hg.isBorderNode(pin), "Trying to update non-border HN " << pin << " PQ=" << target_part);
-    DBG(dbg_refinement_2way_fm_gain_update, "TwoWayFM updating gain of HN " << pin
+    DBG(dbg_refinement_2way_advanced_transistion_fm_gain_update, "TwoWayFM updating gain of HN " << pin
         << " from gain " << _pq.key(pin, target_part) << " to "
         << _pq.key(pin, target_part) + gain_delta << " in PQ " << target_part);
     _pq.updateKeyBy(pin, target_part, gain_delta);
     ASSERT(_gain_cache[pin] != kNotCached, "Error");
-    _rollback_delta_cache.update(pin, -gain_delta);
-    _gain_cache[pin] += gain_delta;
+    if(updateCache) {
+      _rollback_delta_cache.update(pin, -gain_delta);
+      _gain_cache[pin] += gain_delta;
+    }
   }
 
   void rollback(int last_index, const int min_cut_index) noexcept {
@@ -712,19 +593,65 @@ class TwoWayFMRefiner final : public IRefiner,
     }
   }
 
-  Gain computeGain(const HypernodeID hn) const noexcept {
-    Gain gain = 0;
+  AdvancedGain computeGain(const HypernodeID hn) const noexcept {
+    AdvancedGain gain = 0.0;
+    PartitionID from = _hg.partID(hn), to = 1-_hg.partID(hn);
     ASSERT(_hg.partID(hn) < 2, "Trying to do gain computation for k-way partitioning");
     for (const HyperedgeID he : _hg.incidentEdges(hn)) {
-      ASSERT(_hg.edgeSize(he) > 1, V(he));
-      if (_hg.pinCountInPart(he, _hg.partID(hn) ^ 1) == 0) {
-        gain -= _hg.edgeWeight(he);
-      }
-      if (_hg.pinCountInPart(he, _hg.partID(hn)) == 1) {
-        gain += _hg.edgeWeight(he);
+      if(_locked_hes.get(he) != kLocked) {
+	ASSERT(_hg.edgeSize(he) > 1, V(he));
+	double pin_count_from_part = static_cast<double>(_hg.pinCountInPart(he,from));
+	double pin_count_to_part = static_cast<double>(_hg.pinCountInPart(he,to));
+	gain += static_cast<double>(_hg.edgeWeight(he))*
+				  ((1.0 + pin_count_to_part - pin_count_from_part)
+				    /static_cast<double>(_hg.edgeSize(he)-1));
       }
     }
     return gain;
+  }
+  
+
+  
+  void updateGainCacheAfterUncontraction(const HypernodeID u, const HypernodeID v) {
+     if((u == _last_uncontraction_pair.first && v == _last_uncontraction_pair.second)
+       || (v == _last_uncontraction_pair.first && u == _last_uncontraction_pair.second)) {
+	return;
+     }
+     PartitionID part = _hg.partID(u);
+     for(HyperedgeID he : _hg.incidentEdges(u)) {
+	bool is_unconcatraction_partner_in_same_he = false;
+	for(HypernodeID pin : _hg.pins(he)) {
+	  if(pin == v) {
+	    is_unconcatraction_partner_in_same_he = true; 
+	    break;
+	  }
+	}
+	if(is_unconcatraction_partner_in_same_he) {
+	  double old_edge_size = static_cast<double>(_hg.edgeSize(he)-1);
+	  double hn_in_v_part_before = static_cast<double>(_hg.pinCountInPart(he,part)-1);
+	  double hn_not_in_v_part_before = static_cast<double>(_hg.pinCountInPart(he,1-part));
+	  for(HypernodeID pin : _hg.pins(he)) {
+	    if(_gain_cache[pin] != kNotCached) {
+	      if(_hg.partID(pin) == part) {
+		_gain_cache[pin] -= static_cast<double>(_hg.edgeWeight(he))
+				    *(1.0 + hn_not_in_v_part_before - hn_in_v_part_before)
+				    / (old_edge_size*(old_edge_size-1.0));
+		_gain_cache[pin] -= static_cast<double>(_hg.edgeWeight(he))/static_cast<double>(old_edge_size);
+	      } else {
+		_gain_cache[pin] -= static_cast<double>(_hg.edgeWeight(he))*
+				    (1.0 - hn_not_in_v_part_before + hn_in_v_part_before)
+				    / (old_edge_size*(old_edge_size-1.0));
+		_gain_cache[pin] += static_cast<double>(_hg.edgeWeight(he))/static_cast<double>(old_edge_size);
+	      }
+	    }
+	  }
+	}
+     }
+    _last_uncontraction_pair.first = u; 
+    _last_uncontraction_pair.second = v;
+     if(_gain_cache[u] != kNotCached) {
+	_gain_cache[u] = computeGain(u);
+     }
   }
   
   void activateNeighbors(HypernodeID u, const std::array<HypernodeWeight, 2>& max_allowed_part_weights) {
@@ -739,24 +666,25 @@ class TwoWayFMRefiner final : public IRefiner,
 
   using FMRefinerBase::_hg;
   using FMRefinerBase::_config;
+  std::pair<HypernodeID,HypernodeID> _last_uncontraction_pair;
   KWayRefinementPQ _pq;
   FastResetBitVector<> _he_fully_active;
   FastResetBitVector<> _hns_in_activation_vector;
   std::vector<HypernodeID> _performed_moves;
   std::vector<HypernodeID> _hns_to_activate;
   std::vector<HypernodeID> _non_border_hns_to_remove;
-  std::vector<Gain> _gain_cache;
-  FastResetVector<Gain> _rollback_delta_cache;
+  std::vector<AdvancedGain> _gain_cache;
+  FastResetVector<AdvancedGain> _rollback_delta_cache;
   FastResetVector<char> _locked_hes;
   StoppingPolicy _stopping_policy;
 };
 
 template <class T, class U>
-const char TwoWayFMRefiner<T, U>::kFree;
+const char TwoWayAdvancedTransistionFMRefiner<T, U>::kFree;
 
-template <class T, class U>
-const HyperedgeWeight TwoWayFMRefiner<T, U>::kNotCached;
+/*template <class T, class U>
+const AdvancedGain TwoWayAdvancedTransistionFMRefiner<T, U>::kNotCached;*/
 #pragma GCC diagnostic pop
 }                                   // namespace partition
 
-#endif  // SRC_PARTITION_REFINEMENT_TWOWAYFMREFINER_H_
+#endif  // SRC_PARTITION_REFINEMENT_TWOWAYADVANCEDTRANSISTIONFMREFINER_H_
