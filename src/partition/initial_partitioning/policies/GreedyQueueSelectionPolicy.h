@@ -20,11 +20,12 @@ using datastructure::KWayPriorityQueue;
 
 
 namespace partition {
-using KWayRefinementPQ = KWayPriorityQueue<HypernodeID, HyperedgeWeight,
-                                           std::numeric_limits<HyperedgeWeight>,
-                                           ArrayStorage<HypernodeID>, true>;
 
+template<typename GainType = HyperedgeWeight>
 struct RoundRobinQueueSelectionPolicy {
+  using KWayRefinementPQ = KWayPriorityQueue<HypernodeID, GainType,
+                                           std::numeric_limits<GainType>,
+                                           ArrayStorage<HypernodeID>, true>;
   //Method returns the part which all hypernodes has to be assigned to before
   //initial partitioning. In experimental results we recognize that it is 
   //desirable to let all hypernodes unassigned before initial partitioning
@@ -34,7 +35,7 @@ struct RoundRobinQueueSelectionPolicy {
   }
 
   static inline bool nextQueueID(Hypergraph& UNUSED(hg), Configuration& config,
-                                 KWayRefinementPQ& _pq, HypernodeID& current_hn, Gain& current_gain,
+                                 KWayRefinementPQ& _pq, HypernodeID& current_hn, GainType& current_gain,
                                  PartitionID& current_id, bool UNUSED(is_upper_bound_released)) {
     current_id = ((current_id + 1) % config.initial_partitioning.k);
     current_hn = invalid_node;
@@ -58,7 +59,11 @@ struct RoundRobinQueueSelectionPolicy {
   static const Gain invalid_gain = std::numeric_limits<Gain>::max();
 };
 
+template<typename GainType = HyperedgeWeight>
 struct GlobalQueueSelectionPolicy {
+    using KWayRefinementPQ = KWayPriorityQueue<HypernodeID, GainType,
+                                           std::numeric_limits<GainType>,
+                                           ArrayStorage<HypernodeID>, true>;
   //Method returns the part which all hypernodes has to be assigned to before
   //initial partitioning. In experimental results we recognize that it is 
   //desirable to assign all hypernodes to part 1 before initial partitioning
@@ -68,7 +73,7 @@ struct GlobalQueueSelectionPolicy {
   }
 
   static inline bool nextQueueID(Hypergraph& UNUSED(hg), Configuration& config,
-                                 KWayRefinementPQ& _pq, HypernodeID& current_hn, Gain& current_gain,
+                                 KWayRefinementPQ& _pq, HypernodeID& current_hn, GainType& current_gain,
                                  PartitionID& current_id, bool UNUSED(is_upper_bound_released)) {
     current_id = invalid_part;
     current_hn = invalid_node;
@@ -105,7 +110,11 @@ struct GlobalQueueSelectionPolicy {
   static const Gain invalid_gain = std::numeric_limits<Gain>::max();
 };
 
+template<typename GainType = HyperedgeWeight>
 struct SequentialQueueSelectionPolicy {
+    using KWayRefinementPQ = KWayPriorityQueue<HypernodeID, GainType,
+                                           std::numeric_limits<GainType>,
+                                           ArrayStorage<HypernodeID>, true>;
   //Method returns the part which all hypernodes has to be assigned to before
   //initial partitioning. In experimental results we recognize that it is 
   //desirable to assign all hypernodes to part 1 before initial partitioning
@@ -115,7 +124,7 @@ struct SequentialQueueSelectionPolicy {
   }
 
   static inline bool nextQueueID(Hypergraph& hg, Configuration& config,
-                                 KWayRefinementPQ& _pq, HypernodeID& current_hn, Gain& current_gain,
+                                 KWayRefinementPQ& _pq, HypernodeID& current_hn, GainType& current_gain,
                                  PartitionID& current_id, bool is_upper_bound_released) {
     if (!is_upper_bound_released) {
       bool next_part = false;
@@ -149,7 +158,7 @@ struct SequentialQueueSelectionPolicy {
         }
       }
     } else {
-      GlobalQueueSelectionPolicy::nextQueueID(hg, config, _pq, current_hn, current_gain,
+      GlobalQueueSelectionPolicy<GainType>::nextQueueID(hg, config, _pq, current_hn, current_gain,
                                               current_id, is_upper_bound_released);
     }
 

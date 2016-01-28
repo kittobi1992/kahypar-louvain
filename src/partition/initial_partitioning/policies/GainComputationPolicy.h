@@ -24,13 +24,14 @@ using defs::Hypergraph;
 using datastructure::KWayPriorityQueue;
 
 using Gain = HyperedgeWeight;
+using AdvancedGain = double;
 
 namespace partition {
 using KWayRefinementPQ = KWayPriorityQueue<HypernodeID, HyperedgeWeight,
                                            std::numeric_limits<HyperedgeWeight>,
                                            ArrayStorage<HypernodeID>, true>;
 
-enum class GainType : std::uint8_t {
+enum class GainFunctionType : std::uint8_t {
   fm_gain,
   modify_fm_gain,
   max_net_gain,
@@ -129,9 +130,68 @@ struct FMGainComputationPolicy {
     }
   }
 
-  static GainType getType() {
-    return GainType::fm_gain;
+  static GainFunctionType getType() {
+    return GainFunctionType::fm_gain;
   }
+};
+
+
+
+struct FMAdvancedGainComputationPolicy {
+  
+using KWayAdvancedRefinementPQ = KWayPriorityQueue<HypernodeID, AdvancedGain,
+                                           std::numeric_limits<AdvancedGain>,
+                                           ArrayStorage<HypernodeID>, true>;
+
+
+	static inline AdvancedGain calculateGain(const Hypergraph& hg,
+			const HypernodeID& hn, const PartitionID& target_part) noexcept {
+	    AdvancedGain gain = 0.0;
+	    PartitionID from = hg.partID(hn), to = target_part;
+	    for (const HyperedgeID he : hg.incidentEdges(hn)) {
+	      double pin_count_from_part = static_cast<double>(hg.pinCountInPart(he,from));
+	      double pin_count_to_part = static_cast<double>(hg.pinCountInPart(he,to));
+	      gain += static_cast<double>(hg.edgeWeight(he))*
+					((1.0 + pin_count_to_part - pin_count_from_part)
+					  /static_cast<double>(hg.edgeSize(he)-1));
+	    }
+	    return gain;
+	}
+
+	static inline void deltaGainUpdate(Hypergraph& _hg, Configuration& config,
+                                     KWayAdvancedRefinementPQ& pq, HypernodeID hn, PartitionID from,
+                                     PartitionID to, FastResetBitVector<>& UNUSED(visit)) {
+	  
+	  for (HyperedgeID he : _hg.incidentEdges(hn)) {
+	    for (HypernodeID pin : _hg.pins(he)) {
+	      PartitionID part = _hg.partID(pin);
+	      if(part != from && part != to) {
+		AdvancedGain delta_gain = (static_cast<double>(_hg.edgeWeight(he))/(static_cast<double>(_hg.edgeSize(he))-1.0));
+		if(pq.contains(pin, from)) {
+		  pq.updateKeyBy(pin, from, -delta_gain);
+		}
+		if(pq.contains(pin, to)) {
+		  pq.updateKeyBy(pin, to, delta_gain);
+		}
+	      }
+	      else {
+		AdvancedGain delta_gain = (_hg.partID(pin) == from ? 1.0 : -1.0)*
+					  (static_cast<double>(_hg.edgeWeight(he))/(static_cast<double>(_hg.edgeSize(he))-1.0));
+		for(PartitionID i = 0; i < config.initial_partitioning.k; ++i) {
+		  if(pq.contains(pin,i)) {
+		    pq.updateKeyBy(pin, i, ((i == to || i == from ? 2.0 : 1.0)*delta_gain));
+		  }
+		}
+	      }
+	    }
+	  }
+
+	}
+
+	static GainFunctionType getType() {
+		return GainFunctionType::modify_fm_gain;
+	}
+
 };
 
 
@@ -176,8 +236,8 @@ struct MaxPinGainComputationPolicy {
     visit.resetAllBitsToFalse();
   }
 
-  static GainType getType() {
-    return GainType::max_pin_gain;
+  static GainFunctionType getType() {
+    return GainFunctionType::max_pin_gain;
   }
 };
 
@@ -218,8 +278,8 @@ struct MaxNetGainComputationPolicy {
     }
   }
 
-  static GainType getType() {
-    return GainType::max_net_gain;
+  static GainFunctionType getType() {
+    return GainFunctionType::max_net_gain;
   }
 };
 }  // namespace partition

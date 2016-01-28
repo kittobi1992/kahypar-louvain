@@ -264,7 +264,8 @@ inline Configuration Partitioner::createConfigurationForInitialPartitioning(cons
       // refinement algorithm that doesn't do anything in order to "emulate" a flat partitioner
       // for initial partitioning.
       config.partition.coarsening_algorithm = CoarseningAlgorithm::do_nothing;
-      config.partition.refinement_algorithm = RefinementAlgorithm::do_nothing;
+      config.partition.refinement_algorithm = 
+	      config.partition.k > 2 ? RefinementAlgorithm::kway_fm : RefinementAlgorithm::twoway_fm;
       switch (original_config.initial_partitioning.mode) {
         case Mode::recursive_bisection:
           config.partition.mode = Mode::recursive_bisection;

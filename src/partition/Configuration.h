@@ -67,6 +67,8 @@ enum class InitialPartitionerAlgorithm : std::uint8_t {
   greedy_sequential_maxnet,
   greedy_global_maxnet,
   greedy_round_maxnet,
+  greedy_global_advanced_fm,
+  greedy_sequential_advanced_fm,
   bfs,
   random,
   lp,
@@ -159,6 +161,10 @@ static std::string toString(const InitialPartitionerAlgorithm& algo) {
       return std::string("greedy_global");
     case InitialPartitionerAlgorithm::greedy_round:
       return std::string("greedy_round");
+    case InitialPartitionerAlgorithm::greedy_sequential_advanced_fm:
+      return std::string("greedy_sequential_advanced_fm");
+    case InitialPartitionerAlgorithm::greedy_global_advanced_fm:
+      return std::string("greedy_global_advanced_fm");
     case InitialPartitionerAlgorithm::greedy_sequential_maxpin:
       return std::string("greedy_maxpin");
     case InitialPartitionerAlgorithm::greedy_global_maxpin:

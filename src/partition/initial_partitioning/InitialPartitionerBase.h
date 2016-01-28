@@ -87,7 +87,6 @@ class InitialPartitionerBase {
         refiner = (RefinerFactory::getInstance().createObject(
                      RefinementAlgorithm::kway_fm,
                      _hg, _config));
-        LOG("WARNING: Trying to use twoway_fm for k > 2! Refiner is set to kway_fm.");
       } else {
         refiner = (RefinerFactory::getInstance().createObject(
                      RefinementAlgorithm::twoway_fm,

@@ -23,17 +23,25 @@ using datastructure::KWayPriorityQueue;
 using external::ArrayStorage;
 
 using Gain = HyperedgeWeight;
+using AdvancedGain = double;
+
+#define EPS 1e-4
 
 namespace partition {
-using KWayRefinementPQ = KWayPriorityQueue<HypernodeID, HyperedgeWeight,
-                                           std::numeric_limits<HyperedgeWeight>,
-                                           ArrayStorage<HypernodeID>, true>;
+
+					  
 
 template <class StartNodeSelection = Mandatory,
           class GainComputation = Mandatory,
-          class QueueSelection = Mandatory>
+          class QueueSelection = Mandatory,
+          typename GainType = HyperedgeWeight>
 class GreedyHypergraphGrowingInitialPartitioner : public IInitialPartitioner,
                                                   private InitialPartitionerBase {
+						    
+using KWayRefinementPQ = KWayPriorityQueue<HypernodeID, GainType,
+                                           std::numeric_limits<GainType>,
+                                           ArrayStorage<HypernodeID>, true>;
+						    
  public:
   GreedyHypergraphGrowingInitialPartitioner(Hypergraph& hypergraph,
                                             Configuration& config) :
@@ -108,7 +116,7 @@ class GreedyHypergraphGrowingInitialPartitioner : public IInitialPartitioner,
       }
 
       HypernodeID current_hn = kInvalidNode;
-      Gain current_gain = std::numeric_limits<Gain>::min();
+      GainType current_gain = std::numeric_limits<GainType>::min();
 
       if (!QueueSelection::nextQueueID(_hg, _config, _pq, current_hn, current_gain, current_id,
                                        is_upper_bound_released)) {
@@ -149,7 +157,7 @@ class GreedyHypergraphGrowingInitialPartitioner : public IInitialPartitioner,
 
         ASSERT([&]() {
             if (_config.initial_partitioning.unassigned_part != -1 &&
-                GainComputation::getType() == GainType::fm_gain) {
+                GainComputation::getType() == GainFunctionType::fm_gain) {
               _hg.changeNodePart(current_hn, current_id,
                                  _config.initial_partitioning.unassigned_part);
               const HyperedgeWeight cut_before = metrics::hyperedgeCut(_hg);
@@ -209,8 +217,8 @@ class GreedyHypergraphGrowingInitialPartitioner : public IInitialPartitioner,
       HypernodeID hn = InitialPartitionerBase::getUnassignedNode();
       while (hn != kInvalidNode) {
         if (_hg.partID(hn) == -1) {
-          const Gain gain0 = GainComputation::calculateGain(_hg, hn, 0);
-          const Gain gain1 = GainComputation::calculateGain(_hg, hn, 1);
+          const GainType gain0 = GainComputation::calculateGain(_hg, hn, 0);
+          const GainType gain1 = GainComputation::calculateGain(_hg, hn, 1);
           if (gain0 > gain1) {
             _hg.setNodePart(hn, 0);
           } else {
@@ -244,7 +252,7 @@ class GreedyHypergraphGrowingInitialPartitioner : public IInitialPartitioner,
     //into the corresponding PQ again
     if (_hg.partID(hn) != target_part) {
       if (!_pq.contains(hn, target_part)) {
-        const Gain gain = GainComputation::calculateGain(_hg, hn, target_part);
+        const GainType gain = GainComputation::calculateGain(_hg, hn, target_part);
         _pq.insert(hn, target_part, gain);
 
         if (!_pq.isEnabled(target_part) &&
@@ -257,7 +265,7 @@ class GreedyHypergraphGrowingInitialPartitioner : public IInitialPartitioner,
         ASSERT(_pq.isEnabled(target_part),
                "PQ " << target_part << " is disabled!");
       } else if (updateGain) {
-        const Gain gain = GainComputation::calculateGain(_hg, hn, target_part);
+        const GainType gain = GainComputation::calculateGain(_hg, hn, target_part);
         _pq.updateKey(hn, target_part, gain);
       }
     }
@@ -299,8 +307,11 @@ class GreedyHypergraphGrowingInitialPartitioner : public IInitialPartitioner,
           for (const HypernodeID pin : _hg.pins(he)) {
             for (PartitionID i = 0; i < _config.initial_partitioning.k; ++i) {
               if (_pq.isEnabled(i) && _pq.contains(pin, i)) {
-                const Gain gain = GainComputation::calculateGain(_hg, pin, i);
-                if (gain != _pq.key(pin, i)) {
+                const GainType gain = GainComputation::calculateGain(_hg, pin, i);
+                if (std::fabs(gain - _pq.key(pin, i)) > EPS) {
+		  LOGVAR(pin);
+		  LOGVAR(gain);
+		  LOGVAR(_pq.key(pin,i));
                   return false;
                 }
               }
