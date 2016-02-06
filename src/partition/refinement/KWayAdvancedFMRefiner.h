@@ -52,7 +52,7 @@ template <class StoppingPolicy = Mandatory,
 class KWayAdvancedFMRefiner final : public IRefiner,
                             private FMRefinerBase {
   static const bool dbg_refinement_kway_advanced_fm_activation = false;
-  static const bool dbg_refinement_kway_advanced_fm_improvements_cut = true;
+  static const bool dbg_refinement_kway_advanced_fm_improvements_cut = false;
   static const bool dbg_refinement_kway_advanced_fm_improvements_balance = true;
   static const bool dbg_refinement_kway_advanced_fm_stopping_crit = false;
   static const bool dbg_refinement_kway_advanced_fm_gain_update = false;
@@ -225,8 +225,13 @@ class KWayAdvancedFMRefiner final : public IRefiner,
       const bool improved_balance_less_equal_cut = (current_imbalance < best_imbalance) &&
                                                    (current_cut <= best_cut);
       /*LOG(fm_gain << " vs. " << max_gain << ", Old Cut: " << old_cut << ", Current Cut: " << current_cut  
-		  << ", Best Cut: " <<best_cut<<", " << from_part << " -> " << to_part
-		  << ", (" <<improved_balance_less_equal_cut << "," << improved_cut_within_balance<<")");*/
+		  << ", Best Cut: " <<best_cut<<", " << from_part << " -> " << to_part);*/
+      /*std::cout << "(";
+      for(PartitionID i = 0; i < _config.partition.k; i++)
+	std::cout << "("<<(_pq.isEnabled(i) ? "1" : "\e[31m\e[1m0")<<"\e[0m,"
+		  << _pq.size(i) << ","
+		  << (_hg.partWeight(i) < max_allowed_part_weights[0]) 
+		  << (i != _config.partition.k-1 ? ") , " : "))\n");*/
 						   
       ++num_moves_since_last_improvement;
       if (improved_cut_within_balance || improved_balance_less_equal_cut) {
@@ -666,7 +671,6 @@ class KWayAdvancedFMRefiner final : public IRefiner,
   }
   
 
-  //TODO(heuer): Adapt this to AdvancedGainFunction
   void insertHNintoPQ(const HypernodeID hn, const HypernodeWeight max_allowed_part_weight) noexcept {
     ASSERT(!_hn_state.marked(hn), " Trying to insertHNintoPQ for  marked HN " << hn);
     ASSERT(_hg.isBorderNode(hn), "Cannot compute gain for non-border HN " << hn);

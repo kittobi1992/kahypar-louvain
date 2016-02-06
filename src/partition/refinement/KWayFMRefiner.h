@@ -155,6 +155,8 @@ class KWayFMRefiner final : public IRefiner,
     _stopping_policy.resetStatistics();
 
     const double beta = log(_hg.numNodes());
+    
+    //std::cout << "##################Starting Local Search#####################" << std::endl;
     while (!_pq.empty() && !_stopping_policy.searchShouldStop(num_moves_since_last_improvement,
                                                               _config, beta, best_cut, current_cut)) {
       Gain max_gain = kInvalidGain;
@@ -204,6 +206,7 @@ class KWayFMRefiner final : public IRefiner,
                           ceil(static_cast<double>(_config.partition.total_graph_weight) /
                                _config.partition.k) - 1.0;
 
+      HyperedgeWeight old_cut = current_cut;
       current_cut -= max_gain;
       _stopping_policy.updateStatistics(max_gain);
 
@@ -221,6 +224,15 @@ class KWayFMRefiner final : public IRefiner,
       }
 
       updateNeighbours(max_gain_node, from_part, to_part, max_allowed_part_weights[0]);
+      
+      /*LOG(max_gain << ", Old Cut: " << old_cut << ", Current Cut: " << current_cut  
+		  << ", Best Cut: " <<best_cut<<", " << from_part << " -> " << to_part);
+      std::cout << "(";
+      for(PartitionID i = 0; i < _config.partition.k; i++)
+	std::cout << "("<<(_pq.isEnabled(i) ? "1" : "\e[31m\e[1m0")<<"\e[0m,"
+		  << _pq.size(i) << ","
+		  << (_hg.partWeight(i) < max_allowed_part_weights[0]) 
+		  << (i != _config.partition.k-1 ? ") , " : "))\n");*/
 
       // right now, we do not allow a decrease in cut in favor of an increase in balance
       const bool improved_cut_within_balance = (current_imbalance <= _config.partition.epsilon) &&
