@@ -56,6 +56,7 @@ using partition::TwoWayAdvancedTransistionFMFactoryDispatcher;
 using partition::HyperedgeFMFactoryDispatcher;
 using partition::KWayFMFactoryDispatcher;
 using partition::KWayAdvancedFMFactoryDispatcher;
+using partition::KWayKMinusOneFactoryDispatcher;
 using partition::MaxGainNodeKWayFMFactoryDispatcher;
 using partition::TwoWayFMFactoryExecutor;
 using partition::TwoWayAdvancedFMFactoryExecutor;
@@ -64,6 +65,7 @@ using partition::TwoWayAdvancedTransistionFMFactoryExecutor;
 using partition::HyperedgeFMFactoryExecutor;
 using partition::KWayFMFactoryExecutor;
 using partition::KWayAdvancedFMFactoryExecutor;
+using partition::KWayKMinusOneFactoryExecutor;
 using partition::MaxGainNodeKWayFMFactoryExecutor;
 using partition::LPRefiner;
 using partition::DoNothingRefiner;
@@ -357,6 +359,9 @@ void configurePartitionerFromCommandLineInput(Configuration& config,
       }  else if (vm["rtype"].as<std::string>() == "kway_advanced_fm") {
         config.partition.refinement_algorithm =
           RefinementAlgorithm::kway_advanced_fm;
+      } else if (vm["rtype"].as<std::string>() == "kway_kminusone") {
+        config.partition.refinement_algorithm =
+          RefinementAlgorithm::kway_kminusone;
       } else if (vm["rtype"].as<std::string>() == "kway_fm_maxgain") {
         config.partition.refinement_algorithm =
           RefinementAlgorithm::kway_fm_maxgain;
@@ -512,6 +517,16 @@ static Registrar<RefinerFactory> reg_kway_advanced_fm_local_search(
       config.fm_local_search.stopping_rule),
     NullPolicy(),
     KWayAdvancedFMFactoryExecutor(), hypergraph, config);
+});
+
+static Registrar<RefinerFactory> reg_kway_kminusone_local_search(
+  RefinementAlgorithm::kway_kminusone,
+  [](Hypergraph& hypergraph, const Configuration& config) {
+  return KWayKMinusOneFactoryDispatcher::go(
+    PolicyRegistry<RefinementStoppingRule>::getInstance().getPolicy(
+      config.fm_local_search.stopping_rule),
+    NullPolicy(),
+    KWayKMinusOneFactoryExecutor(), hypergraph, config);
 });
 
 static Registrar<RefinerFactory> reg_lp_local_search(

@@ -139,7 +139,7 @@ class CoarsenerBase {
       current_changes.first = 0;
       current_changes.second = 0;
 
-      ASSERT(current_cut <= old_cut, "Cut increased during uncontraction");
+      //ASSERT(current_cut <= old_cut, "Cut increased during uncontraction");
       ASSERT(current_cut == metrics::hyperedgeCut(_hg), "Inconsistent cut values");
       DBG(dbg_coarsening_uncoarsen, "Iteration " << iteration << ": " << old_cut << "-->"
           << current_cut);
