@@ -53,7 +53,7 @@ class KWayAdvancedFMRefiner final : public IRefiner,
                             private FMRefinerBase {
   static const bool dbg_refinement_kway_advanced_fm_activation = false;
   static const bool dbg_refinement_kway_advanced_fm_improvements_cut = false;
-  static const bool dbg_refinement_kway_advanced_fm_improvements_balance = true;
+  static const bool dbg_refinement_kway_advanced_fm_improvements_balance = false;
   static const bool dbg_refinement_kway_advanced_fm_stopping_crit = false;
   static const bool dbg_refinement_kway_advanced_fm_gain_update = false;
   static const bool dbg_refinement_kway_advanced_fm_gain_comp = false;
@@ -146,6 +146,9 @@ class KWayAdvancedFMRefiner final : public IRefiner,
     const double initial_imbalance = best_imbalance;
     HyperedgeWeight current_cut = best_cut;
     double current_imbalance = best_imbalance;
+    HyperedgeWeight best_kminusone = metrics::kMinus1(_hg);
+    HyperedgeWeight initial_kminusone = best_kminusone;
+    HyperedgeWeight current_kminusone = best_kminusone;
 
     PartitionID heaviest_part = heaviestPart();
     HypernodeWeight heaviest_part_weight = _hg.partWeight(heaviest_part);
@@ -208,22 +211,25 @@ class KWayAdvancedFMRefiner final : public IRefiner,
         }
       }
 
-      Gain fm_gain = updateNeighbours(max_gain_node, from_part, to_part, max_allowed_part_weights[0]);
+      std::pair<Gain,Gain> gain = updateNeighbours(max_gain_node, from_part, to_part, max_allowed_part_weights[0]);
       
       HyperedgeWeight old_cut = current_cut;
-       current_cut -= fm_gain;
-      _stopping_policy.updateStatistics(fm_gain);
+       current_cut -= gain.first;
+       current_kminusone -= gain.second;
+      _stopping_policy.updateStatistics(gain.first);
 
       ASSERT(current_cut == metrics::hyperedgeCut(_hg),
              V(current_cut) << V(metrics::hyperedgeCut(_hg)));
+      ASSERT(current_kminusone == metrics::kMinus1(_hg),
+             V(current_kminusone) << V(metrics::kMinus1(_hg)));
       ASSERT(current_imbalance == metrics::imbalance(_hg, _config),
              V(current_imbalance) << V(metrics::imbalance(_hg, _config)));
 
       // right now, we do not allow a decrease in cut in favor of an increase in balance
       const bool improved_cut_within_balance = (current_imbalance <= _config.partition.epsilon) &&
-                                               (current_cut < best_cut);
+                                               (current_kminusone < best_kminusone);
       const bool improved_balance_less_equal_cut = (current_imbalance < best_imbalance) &&
-                                                   (current_cut <= best_cut);
+                                                   (current_kminusone <= best_kminusone);
       /*LOG(fm_gain << " vs. " << max_gain << ", Old Cut: " << old_cut << ", Current Cut: " << current_cut  
 		  << ", Best Cut: " <<best_cut<<", " << from_part << " -> " << to_part);*/
       /*std::cout << "(";
@@ -238,10 +244,11 @@ class KWayAdvancedFMRefiner final : public IRefiner,
         DBG(dbg_refinement_kway_advanced_fm_improvements_balance && max_gain == 0,
             "KWayFM improved balance between " << from_part << " and " << to_part
             << "(max_gain=" << max_gain << ")");
-        DBG(dbg_refinement_kway_advanced_fm_improvements_cut && current_cut < best_cut,
-            "KWayFM improved cut from " << best_cut << " to " << current_cut);
+        DBG(dbg_refinement_kway_advanced_fm_improvements_cut && current_kminusone < best_kminusone,
+            "KWayFM improved cut from " << best_kminusone << " to " << current_kminusone);
         best_cut = current_cut;
         best_imbalance = current_imbalance;
+	best_kminusone = current_kminusone;
         _stopping_policy.resetStatistics();
         min_cut_index = num_moves;
         num_moves_since_last_improvement = 0;
@@ -256,9 +263,9 @@ class KWayAdvancedFMRefiner final : public IRefiner,
             == true ? "policy" : "empty queue"));
 
     rollback(num_moves - 1, min_cut_index);
-    ASSERT(best_cut == metrics::hyperedgeCut(_hg), "Incorrect rollback operation");
-    ASSERT(best_cut <= initial_cut, "Cut quality decreased from "
-           << initial_cut << " to" << best_cut);
+    ASSERT(best_kminusone == metrics::kMinus1(_hg), "Incorrect rollback operation");
+    ASSERT(best_kminusone <= initial_kminusone, "kMinusOne quality decreased from "
+           << initial_kminusone << " to" << best_kminusone);
     return FMImprovementPolicy::improvementFound(best_cut, initial_cut, best_imbalance,
                                                  initial_imbalance, _config.partition.epsilon);
   }
@@ -445,11 +452,12 @@ class KWayAdvancedFMRefiner final : public IRefiner,
   }
 
 
-  Gain updateNeighbours(const HypernodeID moved_hn, const PartitionID from_part,
+  std::pair<Gain,Gain> updateNeighbours(const HypernodeID moved_hn, const PartitionID from_part,
                         const PartitionID to_part, const HypernodeWeight max_allowed_part_weight)
   noexcept {
     _already_processed_part.resetUsedEntries();
     Gain fm_gain = 0;
+    Gain kminusone_gain = 0;
     for (const HyperedgeID he : _hg.incidentEdges(moved_hn)) {
       const HypernodeID pins_in_source_part_before = _hg.pinCountInPart(he,from_part)+1;
       const HypernodeID pins_in_target_part_before = _hg.pinCountInPart(he,to_part)-1;
@@ -464,6 +472,12 @@ class KWayAdvancedFMRefiner final : public IRefiner,
 	fm_gain += _hg.edgeWeight(he);
       } else if(connectivity_before == 1 && _hg.connectivity(he) == 2) {
 	fm_gain -= _hg.edgeWeight(he);
+      }
+      if(move_decreased_connectivity) {
+	kminusone_gain += _hg.edgeWeight(he);
+      }
+      if(move_increased_connectivity) {
+	kminusone_gain -= _hg.edgeWeight(he);
       }
       
       fullUpdate(moved_hn, from_part, to_part, he, max_allowed_part_weight);
@@ -599,7 +613,7 @@ class KWayAdvancedFMRefiner final : public IRefiner,
         return true;
       } (), V(moved_hn));
     
-    return fm_gain;
+    return std::make_pair(fm_gain,kminusone_gain);
   }
 
   void updatePin(const HypernodeID pin, const PartitionID part, const HyperedgeID he,

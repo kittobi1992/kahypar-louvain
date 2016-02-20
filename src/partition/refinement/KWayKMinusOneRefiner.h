@@ -53,8 +53,8 @@ template <class StoppingPolicy = Mandatory,
 class KWayKMinusOneRefiner final : public IRefiner,
                             private FMRefinerBase {
   static const bool dbg_refinement_kway_kminusone_fm_activation = false;
-  static const bool dbg_refinement_kway_kminusone_fm_improvements_cut = true;
-  static const bool dbg_refinement_kway_kminusone_fm_improvements_balance = true;
+  static const bool dbg_refinement_kway_kminusone_fm_improvements_cut = false;
+  static const bool dbg_refinement_kway_kminusone_fm_improvements_balance = false;
   static const bool dbg_refinement_kway_kminusone_fm_stopping_crit = false;
   static const bool dbg_refinement_kway_kminusone_fm_gain_update = false;
   static const bool dbg_refinement_kway_kminusone_fm_gain_comp = false;
@@ -245,7 +245,7 @@ class KWayKMinusOneRefiner final : public IRefiner,
         DBG(dbg_refinement_kway_kminusone_fm_improvements_balance && max_gain == 0,
             "KWayFM improved balance between " << from_part << " and " << to_part
             << "(max_gain=" << max_gain << ")");
-        DBG(dbg_refinement_kway_kminusone_fm_improvements_cut && current_cut < best_cut,
+        DBG(dbg_refinement_kway_kminusone_fm_improvements_cut && current_kminusone < best_kminusone,
             "KWayFM improved cut from " << best_kminusone << " to " << current_kminusone);
         best_cut = current_cut;
 	best_kminusone = current_kminusone;
