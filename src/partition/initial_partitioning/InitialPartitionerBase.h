@@ -124,6 +124,7 @@ class InitialPartitionerBase {
                             + _max_hypernode_weight,
                             _config.initial_partitioning.upper_allowed_partition_weight[1]
                             + _max_hypernode_weight }, { 0, 0 }, current_metric, imbalance);
+	current_cut = current_metric[0];
         ASSERT(current_cut <= old_cut, "Cut increased during uncontraction");
         ASSERT(current_cut == metrics::hyperedgeCut(_hg), "Inconsistent cut values");
 #ifndef NDEBUG

@@ -48,8 +48,8 @@ template <class StoppingPolicy = Mandatory,
 class KWayFMRefiner final : public IRefiner,
                             private FMRefinerBase {
   static const bool dbg_refinement_kway_fm_activation = false;
-  static const bool dbg_refinement_kway_fm_improvements_cut = true;
-  static const bool dbg_refinement_kway_fm_improvements_balance = true;
+  static const bool dbg_refinement_kway_fm_improvements_cut = false;
+  static const bool dbg_refinement_kway_fm_improvements_balance = false;
   static const bool dbg_refinement_kway_fm_stopping_crit = false;
   static const bool dbg_refinement_kway_fm_gain_update = false;
   static const bool dbg_refinement_kway_fm_gain_comp = false;
@@ -121,6 +121,7 @@ class KWayFMRefiner final : public IRefiner,
                   const std::array<HypernodeWeight, 2>& max_allowed_part_weights,
                   const std::pair<HyperedgeWeight, HyperedgeWeight>& UNUSED(changes),
                   std::array<HyperedgeWeight, 2>& best_metric, double& best_imbalance) noexcept override final {
+    HyperedgeWeight best_cut = best_metric[0];
     ASSERT(best_cut == metrics::hyperedgeCut(_hg),
            "initial best_cut " << best_cut << "does not equal cut induced by hypergraph "
            << metrics::hyperedgeCut(_hg));
@@ -141,7 +142,6 @@ class KWayFMRefiner final : public IRefiner,
       activate(refinement_nodes[i], max_allowed_part_weights[0]);
     }
 
-    HyperedgeWeight best_cut = best_metric[0];
     const HyperedgeWeight initial_cut = best_cut;
     const double initial_imbalance = best_imbalance;
     HyperedgeWeight current_cut = best_cut;

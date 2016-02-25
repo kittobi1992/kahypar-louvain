@@ -53,8 +53,8 @@ template <class StoppingPolicy = Mandatory,
 class KWayKMinusOneRefiner final : public IRefiner,
                             private FMRefinerBase {
   static const bool dbg_refinement_kway_kminusone_fm_activation = false;
-  static const bool dbg_refinement_kway_kminusone_fm_improvements_cut = true;
-  static const bool dbg_refinement_kway_kminusone_fm_improvements_balance = true;
+  static const bool dbg_refinement_kway_kminusone_fm_improvements_cut = false;
+  static const bool dbg_refinement_kway_kminusone_fm_improvements_balance = false;
   static const bool dbg_refinement_kway_kminusone_fm_stopping_crit = false;
   static const bool dbg_refinement_kway_kminusone_fm_gain_update = false;
   static const bool dbg_refinement_kway_kminusone_fm_gain_comp = false;
