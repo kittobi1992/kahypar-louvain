@@ -129,7 +129,8 @@ class MaxGainNodeKWayFMRefiner final : public IRefiner,
   bool refineImpl(std::vector<HypernodeID>& refinement_nodes, const size_t num_refinement_nodes,
                   const std::array<HypernodeWeight, 2>& max_allowed_part_weights,
                   const std::pair<HyperedgeWeight, HyperedgeWeight>& UNUSED(changes),
-                  HyperedgeWeight& best_cut, double& best_imbalance) noexcept override final {
+                  std::array<HyperedgeWeight, 2>& best_metric, double& best_imbalance) noexcept override final {
+    HyperedgeWeight best_cut = best_metric[0];
     ASSERT(best_cut == metrics::hyperedgeCut(_hg), V(best_cut) << V(metrics::hyperedgeCut(_hg)));
     ASSERT(FloatingPoint<double>(best_imbalance).AlmostEquals(
              FloatingPoint<double>(metrics::imbalance(_hg, _config))),
@@ -255,6 +256,7 @@ class MaxGainNodeKWayFMRefiner final : public IRefiner,
     rollback(num_moves - 1, min_cut_index);
     ASSERT(best_cut == metrics::hyperedgeCut(_hg), V(best_cut) << V(metrics::hyperedgeCut(_hg)));
     ASSERT(best_cut <= initial_cut, V(best_cut) << V(initial_cut));
+    best_metric[0] = best_cut;
     return FMImprovementPolicy::improvementFound(best_cut, initial_cut, best_imbalance,
                                                  initial_imbalance, _config.partition.epsilon);
   }

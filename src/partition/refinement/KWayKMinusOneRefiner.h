@@ -53,8 +53,8 @@ template <class StoppingPolicy = Mandatory,
 class KWayKMinusOneRefiner final : public IRefiner,
                             private FMRefinerBase {
   static const bool dbg_refinement_kway_kminusone_fm_activation = false;
-  static const bool dbg_refinement_kway_kminusone_fm_improvements_cut = false;
-  static const bool dbg_refinement_kway_kminusone_fm_improvements_balance = false;
+  static const bool dbg_refinement_kway_kminusone_fm_improvements_cut = true;
+  static const bool dbg_refinement_kway_kminusone_fm_improvements_balance = true;
   static const bool dbg_refinement_kway_kminusone_fm_stopping_crit = false;
   static const bool dbg_refinement_kway_kminusone_fm_gain_update = false;
   static const bool dbg_refinement_kway_kminusone_fm_gain_comp = false;
@@ -122,7 +122,8 @@ class KWayKMinusOneRefiner final : public IRefiner,
   bool refineImpl(std::vector<HypernodeID>& refinement_nodes, const size_t num_refinement_nodes,
                   const std::array<HypernodeWeight, 2>& max_allowed_part_weights,
                   const std::pair<HyperedgeWeight, HyperedgeWeight>& UNUSED(changes),
-                  HyperedgeWeight& best_cut, double& best_imbalance) noexcept override final {
+                  std::array<HyperedgeWeight, 2>& best_metric, double& best_imbalance) noexcept override final {
+    HyperedgeWeight best_cut = best_metric[0];
     ASSERT(best_cut == metrics::hyperedgeCut(_hg),
            "initial best_cut " << best_cut << "does not equal cut induced by hypergraph "
            << metrics::hyperedgeCut(_hg));
@@ -147,7 +148,7 @@ class KWayKMinusOneRefiner final : public IRefiner,
     const double initial_imbalance = best_imbalance;
     HyperedgeWeight current_cut = best_cut;
     double current_imbalance = best_imbalance;
-    HyperedgeWeight best_kminusone = metrics::kMinus1(_hg);
+    HyperedgeWeight best_kminusone = best_metric[1];
     HyperedgeWeight initial_kminusone = best_kminusone;
     HyperedgeWeight current_kminusone = best_kminusone;
 
@@ -267,6 +268,7 @@ class KWayKMinusOneRefiner final : public IRefiner,
     ASSERT(best_kminusone == metrics::kMinus1(_hg), "Incorrect rollback operation");
     ASSERT(best_kminusone <= initial_kminusone, "kMinusOne quality decreased from "
            << initial_kminusone << " to" << best_kminusone);
+    best_metric[0] = best_cut; best_metric[1] = best_kminusone;
     return FMImprovementPolicy::improvementFound(best_cut, initial_cut, best_imbalance,
                                                  initial_imbalance, _config.partition.epsilon);
   }

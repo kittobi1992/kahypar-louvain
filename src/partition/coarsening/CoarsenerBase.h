@@ -116,8 +116,9 @@ class CoarsenerBase {
 
   void performLocalSearch(IRefiner& refiner, std::vector<HypernodeID>& refinement_nodes,
                           const size_t num_refinement_nodes, double& current_imbalance,
-                          HyperedgeWeight& current_cut,
+                          std::array<HyperedgeWeight, 2>& current_metric,
                           const std::pair<HyperedgeWeight, HyperedgeWeight>& changes) noexcept {
+    HyperedgeWeight current_cut = current_metric[0];
     HyperedgeWeight old_cut = current_cut;
     int iteration = 0;
     bool improvement_found = false;
@@ -132,7 +133,7 @@ class CoarsenerBase {
                                            _config.partition.max_part_weights[1]
                                            + _max_hn_weights.back().max_weight },
                                          current_changes,
-                                         current_cut,
+                                         current_metric,
                                          current_imbalance);
 
       // uncontraction changes should only be applied once!

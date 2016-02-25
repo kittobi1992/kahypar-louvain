@@ -55,8 +55,9 @@ class LPRefiner final : public IRefiner {
                   const size_t num_refinement_nodes,
                   const std::array<HypernodeWeight, 2>& UNUSED(max_allowed_part_weights),
                   const std::pair<HyperedgeWeight, HyperedgeWeight>& UNUSED(changes),
-                  HyperedgeWeight& best_cut,
+                  std::array<HyperedgeWeight, 2>& best_metric,
                   double __attribute__ ((unused))& best_imbalance) noexcept override final {
+    HyperedgeWeight best_cut = best_metric[0];
     assert(metrics::imbalance(_hg, _config) < _config.partition.epsilon);
     ASSERT(best_cut == metrics::hyperedgeCut(_hg),
            "initial best_cut " << best_cut << "does not equal cut induced by hypergraph "

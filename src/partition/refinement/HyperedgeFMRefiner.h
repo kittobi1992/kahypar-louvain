@@ -133,7 +133,8 @@ class HyperedgeFMRefiner final : public IRefiner,
   bool refineImpl(std::vector<HypernodeID>& refinement_nodes, size_t num_refinement_nodes,
                   const std::array<HypernodeWeight, 2>& max_allowed_part_weights,
                   const std::pair<HyperedgeWeight, HyperedgeWeight>& UNUSED(changes),
-                  HyperedgeWeight& best_cut, double& best_imbalance) noexcept override final {
+                  std::array<HyperedgeWeight, 2>& best_metric, double& best_imbalance) noexcept override final {
+    HyperedgeWeight best_cut = best_metric[0];
     ONLYDEBUG(max_allowed_part_weights);
     ASSERT(_is_initialized, "initialize() has to be called before refine");
     ASSERT(best_cut == metrics::hyperedgeCut(_hg),
@@ -239,7 +240,7 @@ class HyperedgeFMRefiner final : public IRefiner,
     }
 
     rollback(step - 1, min_cut_index, _hg);
-
+    best_metric[0] = best_cut;
     ASSERT(best_cut == metrics::hyperedgeCut(_hg), "Incorrect rollback operation");
     ASSERT(best_cut <= initial_cut, "Cut quality decreased from "
            << initial_cut << " to" << best_cut);

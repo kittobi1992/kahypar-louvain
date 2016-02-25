@@ -31,7 +31,7 @@ class DoNothingRefiner final : public IRefiner {
   bool refineImpl(std::vector<HypernodeID>&, const size_t,
                   const std::array<HypernodeWeight, 2>&,
                   const std::pair<HyperedgeWeight, HyperedgeWeight>&,
-                  HyperedgeWeight&,
+                  std::array<HyperedgeWeight, 2>&,
                   double&) noexcept override final { return false; }
   void initializeImpl() noexcept override final { }
   void initializeImpl(const HyperedgeWeight) noexcept override final { }

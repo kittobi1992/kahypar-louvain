@@ -88,7 +88,9 @@ class HeavyEdgeCoarsenerBase : public CoarsenerBase<CoarseningMemento>{
   bool doUncoarsen(IRefiner& refiner) noexcept {
     double current_imbalance = metrics::imbalance(_hg, _config);
     HyperedgeWeight current_cut = metrics::hyperedgeCut(_hg);
+    HyperedgeWeight current_kminusone = metrics::kMinus1(_hg);
     const HyperedgeWeight initial_cut = current_cut;
+    std::array<HyperedgeWeight,2> current_metric = {current_cut,current_kminusone};
 
     Stats::instance().add(_config, "initialCut", initial_cut);
     Stats::instance().add(_config, "initialImbalance", current_imbalance);
@@ -118,12 +120,13 @@ class HeavyEdgeCoarsenerBase : public CoarsenerBase<CoarseningMemento>{
 
       if (refiner.supportsDeltaGain()) {
         const std::pair<HyperedgeWeight, HyperedgeWeight> changes = _hg.uncontract<true>(_history.back().contraction_memento);
-        performLocalSearch(refiner, refinement_nodes, 2, current_imbalance, current_cut, changes);
+        performLocalSearch(refiner, refinement_nodes, 2, current_imbalance, current_metric, changes);
       } else {
         _hg.uncontract<false>(_history.back().contraction_memento);
-        performLocalSearch(refiner, refinement_nodes, 2, current_imbalance, current_cut, std::make_pair(0, 0));
+        performLocalSearch(refiner, refinement_nodes, 2, current_imbalance, current_metric, std::make_pair(0, 0));
       }
-
+      current_cut = current_metric[0];
+      current_kminusone = current_metric[1];
       _history.pop_back();
     }
 

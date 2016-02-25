@@ -146,7 +146,8 @@ class TwoWayAdvancedConnectivityFMRefiner final : public IRefiner,
   bool refineImpl(std::vector<HypernodeID>& refinement_nodes, const size_t num_refinement_nodes,
                   const std::array<HypernodeWeight, 2>& max_allowed_part_weights,
                   const std::pair<HyperedgeWeight, HyperedgeWeight>& changes,
-                  HyperedgeWeight& best_cut, double& best_imbalance) noexcept override final {
+                  std::array<HyperedgeWeight, 2>& best_metric, double& best_imbalance) noexcept override final {
+    HyperedgeWeight best_cut = best_metric[0];
     ASSERT(best_cut == metrics::hyperedgeCut(_hg),
            "initial best_cut " << best_cut << "does not equal cut induced by hypergraph "
            << metrics::hyperedgeCut(_hg));
@@ -310,6 +311,7 @@ class TwoWayAdvancedConnectivityFMRefiner final : public IRefiner,
     // weights Lmax0, Lmax1.
     // ASSERT(_hg.partWeight(0) <= _config.partition.max_part_weights[0], "Block 0 imbalanced");
     // ASSERT(_hg.partWeight(1) <= _config.partition.max_part_weights[1], "Block 1 imbalanced");
+    best_metric[0] = best_cut;
     return FMImprovementPolicy::improvementFound(best_cut, initial_cut, best_imbalance,
                                                  initial_imbalance, _config.partition.epsilon);
   }

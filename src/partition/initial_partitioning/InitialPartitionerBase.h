@@ -96,6 +96,7 @@ class InitialPartitionerBase {
       refiner->initialize();
       std::vector<HypernodeID> refinement_nodes;
       HyperedgeWeight current_cut = metrics::hyperedgeCut(_hg);
+      HyperedgeWeight current_kminusone = metrics::kMinus1(_hg);
       double imbalance = metrics::imbalance(_hg, _config);
 
 #ifndef NDEBUG
@@ -116,15 +117,17 @@ class InitialPartitionerBase {
         if (num_refinement_nodes < 2) {
           break;
         }
+        std::array<HyperedgeWeight, 2> current_metric = {current_cut, current_kminusone};
         improvement_found =
           refiner->refine(refinement_nodes, num_refinement_nodes,
                           { _config.initial_partitioning.upper_allowed_partition_weight[0]
                             + _max_hypernode_weight,
                             _config.initial_partitioning.upper_allowed_partition_weight[1]
-                            + _max_hypernode_weight }, { 0, 0 }, current_cut, imbalance);
+                            + _max_hypernode_weight }, { 0, 0 }, current_metric, imbalance);
         ASSERT(current_cut <= old_cut, "Cut increased during uncontraction");
         ASSERT(current_cut == metrics::hyperedgeCut(_hg), "Inconsistent cut values");
 #ifndef NDEBUG
+	current_cut = current_metric[0];
         old_cut = current_cut;
 #endif
         ++iteration;
