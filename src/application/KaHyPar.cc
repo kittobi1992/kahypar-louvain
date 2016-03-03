@@ -12,6 +12,7 @@
 #include "lib/core/Registrar.h"
 #include "lib/io/HypergraphIO.h"
 #include "lib/io/PartitioningOutput.h"
+#include "lib/datastructure/SparseSet.h"
 #include "lib/macros.h"
 #include "partition/Configuration.h"
 #include "partition/Factories.h"
@@ -669,6 +670,44 @@ int main(int argc, char* argv[]) {
       hypergraph.removeEdge(he, false);
     }
   }
+
+  LOG("original hypergraph has:");
+  LOG("#HNs:" << hypergraph.initialNumNodes());
+  LOG("#HEs:" << hypergraph.initialNumEdges());
+  LOG("#pins:" << hypergraph.initialNumPins());
+
+
+  SparseSet<HypernodeID> neighbors(hypergraph.initialNumNodes());
+  HyperedgeIndexVector index_vector;
+  HyperedgeVector edge_vector;
+  HyperedgeID num_hes = 0;
+  index_vector.push_back(edge_vector.size());
+
+  for (const auto hn : hypergraph.nodes()) {
+    for (const auto he : hypergraph.incidentEdges(hn)) {
+      for (const auto pin : hypergraph.pins(he)) {
+        neighbors.add(pin);
+      }
+    }
+
+    for (const auto neighbor : neighbors) {
+      edge_vector.push_back(neighbor);
+    }
+    index_vector.push_back(edge_vector.size());
+    ++num_hes;
+    neighbors.clear();
+  }
+
+
+  LOG("neigborhood hypergraph has:");
+  LOG("#HNs:" << hypergraph.initialNumNodes());
+  LOG("#HEs:" << num_hes);
+  LOG("#pins:" << edge_vector.size());
+
+
+  exit(0);
+
+
 
   config.partition.total_graph_weight = hypergraph.totalWeight();
 
