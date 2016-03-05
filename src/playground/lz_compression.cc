@@ -10,7 +10,7 @@ typedef pair<int,int> ii;
 class SuffixArray {
 
 public:
-  #define MAXN 5000010
+  #define MAXN 7000010
   
   SuffixArray(vector<int>& T) : n(T.size()+1), T(T.size()+1), sa(T.size()+1) {
     T.push_back(-1);

@@ -6,7 +6,7 @@ while getopts 'h:' OPTION ; do
     esac
 done
 
-file="/home/theuer/Dokumente/Hypergraph-Experiments/instances/$h"
+file="$h"
 edge_file="$file.neighbor"
 
 #Creating Neighbor-Hypergraph with KaHyPar
