@@ -245,6 +245,18 @@ static inline void writePartitionFile(const Hypergraph& hypergraph, const std::s
   }
   out_stream.close();
 }
+
+static inline void writeHyperedgeVectorFile(const HyperedgeVector& edge_vector, const std::string& filename) {
+  ASSERT(!filename.empty(), "No filename for partition file specified");
+  std::ofstream out_stream(filename.c_str());
+  out_stream << edge_vector.size() << std::endl;
+  for(HypernodeID hn : edge_vector) {
+      out_stream << hn << std::endl;
+  }
+  out_stream << std::endl;
+  out_stream.close();
+}
+
 }  // namespace io
 
 #endif  // SRC_LIB_IO_HYPERGRAPHIO_H_

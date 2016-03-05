@@ -677,7 +677,7 @@ int main(int argc, char* argv[]) {
   LOG("#pins:" << hypergraph.initialNumPins());
 
 
-  SparseSet<HypernodeID> neighbors(hypergraph.initialNumNodes());
+  /* SparseSet<HypernodeID> neighbors(hypergraph.initialNumNodes());
   HyperedgeIndexVector index_vector;
   HyperedgeVector edge_vector;
   HyperedgeID num_hes = 0;
@@ -694,18 +694,23 @@ int main(int argc, char* argv[]) {
       edge_vector.push_back(neighbor);
     }
     index_vector.push_back(edge_vector.size());
+    int n = index_vector.size();
+    std::sort(edge_vector.begin() + index_vector[n-2],edge_vector.begin() + index_vector[n-1]);
     ++num_hes;
     neighbors.clear();
   }
+  
+  std::string out_file = config.partition.graph_filename+".neighbor";
+  io::writeHyperedgeVectorFile(edge_vector,out_file);
 
-
+  LOG("---------------------");
   LOG("neigborhood hypergraph has:");
   LOG("#HNs:" << hypergraph.initialNumNodes());
   LOG("#HEs:" << num_hes);
-  LOG("#pins:" << edge_vector.size());
+  LOG("#pins:" << edge_vector.size()); */
 
 
-  exit(0);
+  //exit(0);
 
 
 
