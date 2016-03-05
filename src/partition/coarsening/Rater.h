@@ -14,7 +14,6 @@
 #include "lib/macros.h"
 #include "partition/Configuration.h"
 #include "partition/coarsening/RatingTieBreakingPolicies.h"
-#include "lib/datastructure/Neighborhood.h"
 
 using datastructure::SparseMap;
 using defs::Hypergraph;
