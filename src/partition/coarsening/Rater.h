@@ -147,7 +147,6 @@ class Rater {
   Hypergraph& _hg;
   const Configuration& _config;
   SparseMap<HypernodeID, RatingType> _tmp_ratings;
-  std::vector<RatingType> _tmp_ratings;
   Neighborhood _neighborhood;
 };
 #pragma GCC diagnostic pop
