@@ -78,6 +78,10 @@ class SparseSet {
     _dense.clear();
   }
 
+  std::vector<T>& elements() {
+    return _dense;
+  }
+
  private:
   std::vector<T> _dense;
   std::unique_ptr<T[]> _sparse;

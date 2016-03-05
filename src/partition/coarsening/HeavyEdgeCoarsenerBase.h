@@ -83,6 +83,7 @@ class HeavyEdgeCoarsenerBase : public CoarsenerBase<CoarseningMemento>{
     if (_hg.nodeWeight(rep_node) > _max_hn_weights.back().max_weight) {
       _max_hn_weights.emplace_back(_hg.numNodes(), _hg.nodeWeight(rep_node));
     }
+    _rater.neighborhood().mergeNeighbors(rep_node, contracted_node);
   }
 
   bool doUncoarsen(IRefiner& refiner) noexcept {

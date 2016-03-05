@@ -14,8 +14,10 @@
 #include "lib/macros.h"
 #include "partition/Configuration.h"
 #include "partition/coarsening/RatingTieBreakingPolicies.h"
+#include "lib/datastructure/Neighborhood.h"
 
 using datastructure::SparseSet;
+using datastructure::Neighborhood;
 using defs::Hypergraph;
 using defs::HypernodeID;
 using defs::HyperedgeID;
@@ -64,7 +66,8 @@ class Rater {
     _hg(hypergraph),
     _config(config),
     _tmp_ratings(_hg.initialNumNodes()),
-    _used_entries(_hg.initialNumNodes()) { }
+    _used_entries(_hg.initialNumNodes()),
+    _neighborhood(hypergraph) { }
 
   Rater(const Rater&) = delete;
   Rater& operator= (const Rater&) = delete;
@@ -97,9 +100,12 @@ class Rater {
                              (weight_u * _hg.nodeWeight(tmp_target));
       _tmp_ratings[tmp_target] = 0.0;
       DBG(false, "r(" << u << "," << tmp_target << ")=" << tmp);
-      if (acceptRating(tmp, max_rating)) {
+      double jaccard_index = 0.0;
+      double tmp_index = _neighborhood.jaccardIndex(u, tmp_target);
+      if (acceptRating(tmp, max_rating) && jaccard_index < tmp_index) {
         max_rating = tmp;
         target = tmp_target;
+        jaccard_index = tmp_index;
       }
     }
     _used_entries.clear();
@@ -127,6 +133,10 @@ class Rater {
     return _config.coarsening.max_allowed_node_weight;
   }
 
+  Neighborhood& neighborhood() {
+    return _neighborhood;
+  }
+
  private:
   bool belowThresholdNodeWeight(const HypernodeWeight weight_u,
                                 const HypernodeWeight weight_v) const noexcept {
@@ -134,13 +144,14 @@ class Rater {
   }
 
   bool acceptRating(const RatingType tmp, const RatingType max_rating) const noexcept {
-    return max_rating < tmp || (max_rating == tmp && TieBreakingPolicy::acceptEqual());
+    return max_rating < tmp || (max_rating == tmp);
   }
 
   Hypergraph& _hg;
   const Configuration& _config;
   std::vector<RatingType> _tmp_ratings;
   SparseSet<HypernodeID> _used_entries;
+  Neighborhood _neighborhood;
 };
 #pragma GCC diagnostic pop
 }  // namespace partition
