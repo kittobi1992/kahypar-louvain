@@ -257,6 +257,20 @@ static inline void writeHyperedgeVectorFile(const HyperedgeVector& edge_vector, 
   out_stream.close();
 }
 
+static inline void writeNeighborhoodHypergraphFile(const HyperedgeIndexVector& index_vector, const HyperedgeVector& edge_vector, const std::string& filename) {
+  ASSERT(!filename.empty(), "No filename for partition file specified");
+  std::ofstream out_stream(filename.c_str());
+  out_stream << index_vector.size() << std::endl;
+  for(int i = 1; i < index_vector.size(); ++i) {
+    out_stream << index_vector[i] - index_vector[i-1] << " ";
+    for(int j = index_vector[i-1]; j < index_vector[i]; ++j) {
+      out_stream << edge_vector[j] << " ";
+    }
+    out_stream << std::endl;
+  }
+  out_stream.close();
+}
+
 }  // namespace io
 
 #endif  // SRC_LIB_IO_HYPERGRAPHIO_H_

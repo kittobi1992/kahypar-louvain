@@ -13,6 +13,7 @@
 #include "lib/io/HypergraphIO.h"
 #include "lib/io/PartitioningOutput.h"
 #include "lib/datastructure/SparseSet.h"
+#include "lib/datastructure/NeighborhoodHypergraph.h"
 #include "lib/macros.h"
 #include "partition/Configuration.h"
 #include "partition/Factories.h"
@@ -85,6 +86,7 @@ using defs::HyperedgeVector;
 using defs::HyperedgeWeightVector;
 using defs::HypernodeWeightVector;
 using defs::HighResClockTimepoint;
+using datastructure::NeighborhoodHypergraph;
 
 InitialPartitionerAlgorithm stringToInitialPartitionerAlgorithm(std::string mode) {
   if (mode.compare("greedy_sequential") == 0) {
@@ -675,6 +677,11 @@ int main(int argc, char* argv[]) {
   LOG("#HNs:" << hypergraph.initialNumNodes());
   LOG("#HEs:" << hypergraph.initialNumEdges());
   LOG("#pins:" << hypergraph.initialNumPins());
+  
+  NeighborhoodHypergraph n_hg(hypergraph);
+  LOG(n_hg.getNeighborhoodHypergraphStats());
+  hypergraph.contract(6,3373);
+  n_hg.contract(6,3373);
 
 
   /* SparseSet<HypernodeID> neighbors(hypergraph.initialNumNodes());
@@ -710,7 +717,7 @@ int main(int argc, char* argv[]) {
   LOG("#pins:" << edge_vector.size()); */
 
 
-  //exit(0);
+  exit(0);
 
 
 
