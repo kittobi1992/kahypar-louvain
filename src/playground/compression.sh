@@ -13,8 +13,8 @@ edge_file="$file.neighbor"
 #/home/theuer/Dokumente/hypergraph/release/src/application/KaHyPar --hgr="$file" --e=0.03 --k=2
 
 #Compressed Neighbor-Hypergraph with LZ-Factorization
-g++ -std=c++14 -O3 -DNDEBUG -I ~/include -L ~/lib /home/theuer/Dokumente/hypergraph/src/playground/lz_compression.cc -o /home/theuer/Dokumente/hypergraph/src/playground/lz_compression -lsdsl -ldivsufsort -ldivsufsort64
-#/home/theuer/Dokumente/hypergraph/src/playground/lz_compression "$edge_file"
+g++ -std=c++11 -O3 -DNDEBUG -I ~/include -L ~/lib /home/theuer/Dokumente/hypergraph/src/playground/lz_compression.cc -o /home/theuer/Dokumente/hypergraph/src/playground/lz_compression -lsdsl -ldivsufsort -ldivsufsort64
+/home/theuer/Dokumente/hypergraph/src/playground/lz_compression "$edge_file"
 
 #Uncompress LZ-Neighbor-Hypergraph to validate correctness
 #g++ -std=c++11 /home/theuer/Dokumente/hypergraph/src/playground/lz_uncompression.cc -o /home/theuer/Dokumente/hypergraph/src/playground/lz_uncompression
