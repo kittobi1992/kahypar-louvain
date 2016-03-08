@@ -12,8 +12,6 @@
 #include "lib/core/Registrar.h"
 #include "lib/io/HypergraphIO.h"
 #include "lib/io/PartitioningOutput.h"
-#include "lib/datastructure/SparseSet.h"
-#include "lib/datastructure/NeighborhoodHypergraph.h"
 #include "lib/macros.h"
 #include "partition/Configuration.h"
 #include "partition/Factories.h"
@@ -86,7 +84,6 @@ using defs::HyperedgeVector;
 using defs::HyperedgeWeightVector;
 using defs::HypernodeWeightVector;
 using defs::HighResClockTimepoint;
-using datastructure::NeighborhoodHypergraph;
 
 InitialPartitionerAlgorithm stringToInitialPartitionerAlgorithm(std::string mode) {
   if (mode.compare("greedy_sequential") == 0) {
@@ -672,81 +669,6 @@ int main(int argc, char* argv[]) {
       hypergraph.removeEdge(he, false);
     }
   }
-
-  LOG("original hypergraph has:");
-  LOG("#HNs:" << hypergraph.initialNumNodes());
-  LOG("#HEs:" << hypergraph.initialNumEdges());
-  LOG("#pins:" << hypergraph.initialNumPins());
-  
-  NeighborhoodHypergraph n_hg(hypergraph);
-  LOG(n_hg.getNeighborhoodHypergraphStats());
-  auto memento = hypergraph.contract(6,3373);
-  n_hg.contract(6,3373);
-  hypergraph.setNodePart(6,0);
-  hypergraph.uncontract(memento);
-  n_hg.uncontract(6,3373);
-  
-  unsigned long long sum = 0;
-  HighResClockTimepoint s = std::chrono::high_resolution_clock::now();
-  for(HypernodeID hn : hypergraph.nodes()) {
-    for(HyperedgeID he : hypergraph.incidentEdges(hn)) {
-      for(HypernodeID pin : hypergraph.pins(he)) {
-	sum += pin;
-      }
-    }
-  }
-  HighResClockTimepoint e = std::chrono::high_resolution_clock::now();
-  std::chrono::duration<double> seconds = e - s;
-  LOG("Naive Iteration over all pins: " << seconds.count() << "s");
-  
-  sum = 0;
-  s = std::chrono::high_resolution_clock::now();
-  for(HypernodeID hn : hypergraph.nodes()) {
-    for(HyperedgeID pin : n_hg._neighbors[hn]) {
-      sum += pin;
-    }
-  }
-  e = std::chrono::high_resolution_clock::now();
-  seconds = e - s;
-  LOG("Iteration over all pins using neighborhood hypergraph: " << seconds.count() << "s");
-
-
-  /* SparseSet<HypernodeID> neighbors(hypergraph.initialNumNodes());
-  HyperedgeIndexVector index_vector;
-  HyperedgeVector edge_vector;
-  HyperedgeID num_hes = 0;
-  index_vector.push_back(edge_vector.size());
-
-  for (const auto hn : hypergraph.nodes()) {
-    for (const auto he : hypergraph.incidentEdges(hn)) {
-      for (const auto pin : hypergraph.pins(he)) {
-        neighbors.add(pin);
-      }
-    }
-
-    for (const auto neighbor : neighbors) {
-      edge_vector.push_back(neighbor);
-    }
-    index_vector.push_back(edge_vector.size());
-    int n = index_vector.size();
-    std::sort(edge_vector.begin() + index_vector[n-2],edge_vector.begin() + index_vector[n-1]);
-    ++num_hes;
-    neighbors.clear();
-  }
-  
-  std::string out_file = config.partition.graph_filename+".neighbor";
-  io::writeHyperedgeVectorFile(edge_vector,out_file);
-
-  LOG("---------------------");
-  LOG("neigborhood hypergraph has:");
-  LOG("#HNs:" << hypergraph.initialNumNodes());
-  LOG("#HEs:" << num_hes);
-  LOG("#pins:" << edge_vector.size()); */
-
-
-  exit(0);
-
-
 
   config.partition.total_graph_weight = hypergraph.totalWeight();
 

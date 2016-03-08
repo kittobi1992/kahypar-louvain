@@ -20,7 +20,9 @@
 #include "gtest/gtest_prod.h"
 #include "lib/core/Empty.h"
 #include "lib/core/Mandatory.h"
+#include "lib/datastructure/SparseSet.h"
 #include "lib/datastructure/FastResetBitVector.h"
+#include "lib/datastructure/NeighborhoodHypergraph.h"
 #include "lib/definitions.h"
 #include "lib/macros.h"
 
@@ -467,7 +469,8 @@ class GenericHypergraph {
     _incidence_array(2 * _num_pins, 0),
     _part_info(_k),
     _pins_in_part(_num_hyperedges * k),
-    _hes_not_containing_u(_num_hyperedges, false) {
+    _hes_not_containing_u(_num_hyperedges, false),
+    _n_hypergraph() {
     VertexID edge_vector_index = 0;
     for (HyperedgeID i = 0; i < _num_hyperedges; ++i) {
       hyperedge(i).setFirstEntry(edge_vector_index);
@@ -521,6 +524,9 @@ class GenericHypergraph {
     } else if (has_hypernode_weights) {
       _type = Type::NodeWeights;
     }
+    
+    createNeighborhoodHypergraph();
+   
   }
 
   GenericHypergraph(const GenericHypergraph&) = delete;
@@ -701,6 +707,10 @@ class GenericHypergraph {
     }
     hypernode(v).disable();
     --_current_num_hypernodes;
+    
+    _n_hypergraph.contract(u,v);
+    ASSERT(verifyNeighborhoodList(u),"Neighborhood list of HN " << u << " didn't match with real neighborhood!");
+    
     return Memento(u, u_offset, u_size, v);
   }
 
@@ -795,6 +805,36 @@ class GenericHypergraph {
     for (const HyperedgeID he : incidentEdges(hn)) {
       increasePinCountInPart(he, id);
     }
+  }
+  
+  void createNeighborhoodHypergraph() {
+    _n_hypergraph.resize(_num_hypernodes);
+    
+    //Creating Neighborhood Hypergraph
+    SparseSet<int> neighbors(_num_hypernodes);
+
+    for (const auto hn : nodes()) {
+      for (const auto he : incidentEdges(hn)) {
+        for (const auto pin : pins(he)) {
+          neighbors.add(pin);
+        }
+      }
+      std::vector<int> neighbor;
+      neighbor.swap(neighbors.elements());
+      std::sort(neighbor.begin(), neighbor.end());
+      _n_hypergraph.setNeighborhoodOfHypernode(hn,neighbor);
+
+      neighbors.clear();
+    }
+    ASSERT([&]() {
+      for(HypernodeID hn : nodes()) {
+	if(!verifyNeighborhoodList(hn)) {
+	  return false;
+	}
+      }
+      return true;
+    } (),"Neighborhood hypergraph creation failed!");
+    LOG(_n_hypergraph.getNeighborhoodHypergraphStats()); 
   }
 
   // Deleting a hypernode amounts to removing the undirected internal edge between
@@ -1309,6 +1349,10 @@ class GenericHypergraph {
     ASSERT(hypernode(memento.v).num_incident_cut_hes == numIncidentCutHEs(memento.v),
            V(memento.v) << V(hypernode(memento.v).num_incident_cut_hes) << V(numIncidentCutHEs(memento.v)));
 
+    
+    //_n_hypergraph.uncontract(memento.u,memento.v);
+    ASSERT(verifyNeighborhoodList(memento.u),"Neighborhood list of HN " << memento.u << " didn't match with real neighborhood!");
+    ASSERT(verifyNeighborhoodList(memento.v),"Neighborhood list of HN " << memento.v << " didn't match with real neighborhood!");
     return ret;
   }
 
@@ -1396,6 +1440,10 @@ class GenericHypergraph {
            V(memento.u) << V(hypernode(memento.u).num_incident_cut_hes) << V(numIncidentCutHEs(memento.u)));
     ASSERT(hypernode(memento.v).num_incident_cut_hes == numIncidentCutHEs(memento.v),
            V(memento.v) << V(hypernode(memento.v).num_incident_cut_hes) << V(numIncidentCutHEs(memento.v)));
+    
+    //_n_hypergraph.uncontract(memento.u,memento.v);
+    ASSERT(verifyNeighborhoodList(memento.u),"Neighborhood list of HN " << memento.u << " didn't match with real neighborhood!");
+    ASSERT(verifyNeighborhoodList(memento.v),"Neighborhood list of HN " << memento.v << " didn't match with real neighborhood!");
   }
 
   bool isBorderNodeInternal(const HypernodeID hn) const {
@@ -1617,6 +1665,44 @@ class GenericHypergraph {
   HyperedgeVertex & hyperedge(const HyperedgeID e) noexcept {
     return const_cast<HyperedgeVertex&>(static_cast<const GenericHypergraph&>(*this).hyperedge(e));
   }
+  
+  bool verifyNeighborhoodList(HypernodeID x) {
+	std::vector<bool> match(_n_hypergraph._neighbors[x].size(),false);
+	for(HyperedgeID he : incidentEdges(x)) {
+	  for(HypernodeID pin : pins(he)) {
+	    bool found = false;
+	    for(int k = 0; k < _n_hypergraph._neighbors[x].size(); ++k) {
+	      if(_n_hypergraph._neighbors[x][k] == pin) {
+		match[k] = true; found = true;
+		break;
+	      }
+	    }
+	    //Hypernode pin should be contained in the neighborhood list of hypernode x.
+	    if(!found) {
+	      LOG("HN " << pin << " should be in the neighborhood list of HN " << x << "!");
+	      _n_hypergraph.printNeighborhood(x);
+	      LOG("Real neighborhoodlist:");
+	      for(HyperedgeID he : incidentEdges(x)) {
+		std::cout << "HE " << he << ": ";
+		for(HypernodeID pin : pins(he)) {
+		  std::cout << pin << " ";
+		}
+		std::cout << std::endl;
+	      }
+	      return false;
+	    }
+	  }
+	}
+	for(int k = 0; k < _n_hypergraph._neighbors[x].size(); ++k) {
+	  //Hypernode _neighbors[x][k] isn't in the neighborhood of hypernode x.
+	  if(!match[k]) {
+	    LOG("HN " << _n_hypergraph._neighbors[x][k] << " isn't in the neighborhood of HN " << x << "!");
+	    _n_hypergraph.printNeighborhood(x);
+	    return false;
+	  }
+	}
+        return true;   
+  }
 
   HypernodeID _num_hypernodes;
   HyperedgeID _num_hyperedges;
@@ -1647,6 +1733,8 @@ class GenericHypergraph {
   // indicate that he have to undo a "Case 2" Operation, i.e. one, where the pin slot of
   // v was re-used during contraction.
   FastResetBitVector<> _hes_not_containing_u;
+  
+  NeighborhoodHypergraph _n_hypergraph;
 
   template <typename Hypergraph>
   friend std::pair<std::unique_ptr<Hypergraph>,
@@ -1815,6 +1903,8 @@ reindex(const Hypergraph& hypergraph) {
   }
 
   reindexed_hypergraph->_part_info.resize(reindexed_hypergraph->_k);
+  
+  reindexed_hypergraph->createNeighborhoodHypergraph();
 
   return std::make_pair(std::move(reindexed_hypergraph), reindexed_to_original);
 }
@@ -1930,6 +2020,9 @@ extractPartAsUnpartitionedHypergraphForBisection(const Hypergraph& hypergraph,
       }
     }
   }
+  
+  subhypergraph->createNeighborhoodHypergraph();
+  
   return std::make_pair(std::move(subhypergraph),
                         subhypergraph_to_hypergraph);
 }
