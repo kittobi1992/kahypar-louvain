@@ -27,7 +27,6 @@ using PartitionID = std::int32_t;
 using Hypergraph = datastructure::GenericHypergraph<HypernodeID,
                                                     HyperedgeID, HypernodeWeight,
                                                     HyperedgeWeight, PartitionID>;
-
 using RatingType = double;
 using HypergraphType = Hypergraph::Type;
 using HyperedgeIndexVector = Hypergraph::HyperedgeIndexVector;

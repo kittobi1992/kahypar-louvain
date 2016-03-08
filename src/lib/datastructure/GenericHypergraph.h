@@ -25,6 +25,7 @@
 #include "lib/core/Mandatory.h"
 #include "lib/datastructure/SparseSet.h"
 #include "lib/datastructure/ConnectivitySets.h"
+#include "lib/datastructure/SparseSet.h"
 #include "lib/datastructure/FastResetBitVector.h"
 #include "lib/datastructure/NeighborhoodHypergraph.h"
 #include "lib/definitions.h"
@@ -620,7 +621,7 @@ class GenericHypergraph {
       }
       return true;
     } (), "Neighborhood list of HN"<<u<<" neighbors didn't match with the real neighborhood!");
-    
+
     return Memento(u, u_offset, u_size, v);
   }
 
@@ -955,6 +956,7 @@ class GenericHypergraph {
       }
       return true;
     } (),"Neighborhood hypergraph creation failed!");
+    LOG(_n_hypergraph.getNeighborhoodHypergraphStats());
   }
 
   // Deleting a hypernode amounts to removing the undirected internal edge between
