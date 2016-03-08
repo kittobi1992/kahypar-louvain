@@ -15,6 +15,7 @@
 using defs::Hypergraph;
 using defs::HypernodeID;
 
+
 namespace datastructure {
 
 class NeighborhoodHypergraph {
@@ -42,6 +43,8 @@ class NeighborhoodHypergraph {
   void contract(const HypernodeID x, const HypernodeID y) {
     ASSERT(x < _neighbors.size(), "HN " << x << " isn't a valid hypernode!");
     ASSERT(y < _neighbors.size(), "HN " << y << " isn't a valid hypernode!");
+    ASSERT(_is_active[x] && _is_active[y], "Both hypernodes has to be active before contraction!");
+    
     int i = 0, j = 0;
     int size_x = _neighbors[x].size(), size_y = _neighbors[y].size();
     std::vector<int> new_x;
@@ -133,6 +136,7 @@ class NeighborhoodHypergraph {
     swap(_neighbors[x],new_x);
     //Disable hypernode y
     _is_active[y] = false;
+
     
     //Validates if hypernode y is removed from neighborhood list of neighbors of y.
     ASSERT([&]() {
@@ -181,6 +185,131 @@ class NeighborhoodHypergraph {
     
   }
   
+  void uncontract(const HypernodeID x, const HypernodeID y) {
+    ASSERT(x < _neighbors.size(), "HN " << x << " isn't a valid hypernode!");
+    ASSERT(y < _neighbors.size(), "HN " << y << " isn't a valid hypernode!");
+    ASSERT(_is_active[x] && !_is_active[y], "HN "<<x<<" has to be active and HN "<<y<<" has to be inactive to uncontract them!");
+    
+    int i = 0, j = 0;
+    int size_x = _neighbors[x].size(), size_y = _neighbors[y].size();
+    std::vector<int> new_x;
+    while(i < size_x || j < size_y) {
+      if(j == size_y) {
+	new_x.insert(new_x.end(),_neighbors[x].begin()+i,_neighbors[x].end());
+	i = size_x;
+	continue;
+      }
+      
+      int cur_y = std::abs(_neighbors[y][j]);
+      if(cur_y == y) {
+	j++; continue;
+      }
+      if(_neighbors[x][i] < cur_y) {
+	new_x.push_back(_neighbors[x][i++]);
+      }
+      else if(_neighbors[x][i] == cur_y) {
+	if(_neighbors[y][j] < 0) {
+	  new_x.push_back(_neighbors[x][i++]);
+	  _neighbors[y][j] = -_neighbors[y][j++];
+	}
+	else {
+	  i++; j++;
+	}
+      }
+    }
+    
+    //Apply new neighborhood list of hypernode x
+    swap(_neighbors[x],new_x);
+    //Activate hypernode y
+    _is_active[y] = true;
+    
+    for(int k = 0; k < _neighbors[y].size(); ++k) {
+      HypernodeID pin = _neighbors[y][k];
+      if(_is_active[pin] && pin != y) {
+	//TODO(heuer): Naive insert variant. Another approach is to use lists instead of vectors,
+	//but this makes compression very difficult.
+	auto pos = std::lower_bound(_neighbors[pin].begin(),_neighbors[pin].end(),y);
+	_neighbors[pin].insert(pos,y);
+      }
+    }
+    
+    //Validates if the neighborhood list of hypernode y contains the correct hypernodes
+    ASSERT([&]() {
+	std::vector<bool> match(_neighbors[y].size(),false);
+	for(HyperedgeID he : _hg.incidentEdges(y)) {
+	  for(HypernodeID pin : _hg.pins(he)) {
+	    bool found = false;
+	    for(int k = 0; k < _neighbors[y].size(); ++k) {
+	      if(_neighbors[y][k] == pin) {
+		match[k] = true; found = true;
+		break;
+	      }
+	    }
+	    //Hypernode pin should be contained in the neighborhood list of hypernode y.
+	    if(!found) {
+	      LOG("HN " << pin << " should be in the neighborhood list of HN " << y << "!");
+	      return false;
+	    }
+	  }
+	}
+	for(int k = 0; k < _neighbors[y].size(); ++k) {
+	  //Hypernode _neighbors[y][k] isn't in the neighborhood of hypernode y.
+	  if(!match[k]) {
+	    LOG("HN " << _neighbors[y][k] << " isn't in the neighborhood of HN " << y << "!");
+	    return false;
+	  }
+	}
+        return true;
+      } (), "Creating new neighborhood list of HN " << y << " failed!");
+    
+    //Validates if hypernode y is inserted in each neighborhood list of neighbors of y.
+    ASSERT([&]() {
+	for(int k = 0; k < _neighbors[y].size(); ++k) {
+	  HypernodeID pin = static_cast<HypernodeID>(std::abs(_neighbors[y][k]));
+	  if(_is_active[pin]) {
+	    auto find = std::lower_bound(_neighbors[pin].begin(),_neighbors[pin].end(),y);
+	    if(find == _neighbors[pin].end() || *find != y) {
+		LOG("Neighborhood list of HN " << pin << " didn't contain HN " << y << "!");
+		printNeighborhood(pin);
+		return false;
+	    }
+	  }
+	}
+        return true;
+      } (), "HN " << y << " should be removed from all neighbors!");
+    
+    //Validates if the neighborhood list of hypernode x contains the correct hypernodes
+    ASSERT([&]() {
+	std::vector<bool> match(_neighbors[x].size(),false);
+	for(HyperedgeID he : _hg.incidentEdges(x)) {
+	  for(HypernodeID pin : _hg.pins(he)) {
+	    bool found = false;
+	    for(int k = 0; k < _neighbors[x].size(); ++k) {
+	      if(_neighbors[x][k] == pin) {
+		match[k] = true; found = true;
+		break;
+	      }
+	    }
+	    //Hypernode pin should be contained in the neighborhood list of hypernode x.
+	    if(!found) {
+	      LOG("HN " << pin << " should be in the neighborhood list of HN " << x << "!");
+	      return false;
+	    }
+	  }
+	}
+	for(int k = 0; k < _neighbors[x].size(); ++k) {
+	  //Hypernode _neighbors[x][k] isn't in the neighborhood of hypernode x.
+	  if(!match[k]) {
+	    LOG("HN " << _neighbors[x][k] << " isn't in the neighborhood of HN " << x << "!");
+	    return false;
+	  }
+	}
+        return true;
+      } (), "Creating new neighborhood list of HN " << x << " failed!");
+    
+    
+  }
+  
   
   std::string getNeighborhoodHypergraphStats() {
     std::ostringstream oss;
@@ -202,6 +331,7 @@ class NeighborhoodHypergraph {
     return oss.str();
   }
 
+  std::vector<std::vector<int>> _neighbors;
 
   
 private:
@@ -215,7 +345,6 @@ private:
   }
   
   Hypergraph& _hg;
-  std::vector<std::vector<int>> _neighbors;
   std::vector<bool> _is_active;
 
 };
