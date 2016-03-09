@@ -710,6 +710,16 @@ class GenericHypergraph {
     
     _n_hypergraph.contract(u,v);
     ASSERT(verifyNeighborhoodList(u),"Neighborhood list of HN " << u << " didn't match with real neighborhood!");
+    ASSERT([&]() {
+      for(HyperedgeID he : incidentEdges(u)) {
+	for(HypernodeID pin : pins(he)) {
+	  if(!verifyNeighborhoodList(pin)) {
+	    return false;
+	  }
+	}
+      }
+      return true;
+    } (), "Neighborhood list of HN"<<u<<" neighbors didn't match with the real neighborhood!");
     
     return Memento(u, u_offset, u_size, v);
   }
@@ -834,7 +844,6 @@ class GenericHypergraph {
       }
       return true;
     } (),"Neighborhood hypergraph creation failed!");
-    LOG(_n_hypergraph.getNeighborhoodHypergraphStats()); 
   }
 
   // Deleting a hypernode amounts to removing the undirected internal edge between
@@ -1350,9 +1359,29 @@ class GenericHypergraph {
            V(memento.v) << V(hypernode(memento.v).num_incident_cut_hes) << V(numIncidentCutHEs(memento.v)));
 
     
-    //_n_hypergraph.uncontract(memento.u,memento.v);
+    _n_hypergraph.uncontract(memento.u,memento.v);
     ASSERT(verifyNeighborhoodList(memento.u),"Neighborhood list of HN " << memento.u << " didn't match with real neighborhood!");
     ASSERT(verifyNeighborhoodList(memento.v),"Neighborhood list of HN " << memento.v << " didn't match with real neighborhood!");
+    ASSERT([&]() {
+      for(HyperedgeID he : incidentEdges(memento.u)) {
+	for(HypernodeID pin : pins(he)) {
+	  if(!verifyNeighborhoodList(pin)) {
+	    return false;
+	  }
+	}
+      }
+      return true;
+    } (), "Neighborhood list of HN"<<memento.u<<" neighbors didn't match with the real neighborhood!");
+    ASSERT([&]() {
+      for(HyperedgeID he : incidentEdges(memento.v)) {
+	for(HypernodeID pin : pins(he)) {
+	  if(!verifyNeighborhoodList(pin)) {
+	    return false;
+	  }
+	}
+      }
+      return true;
+    } (), "Neighborhood list of HN"<<memento.v<<" neighbors didn't match with the real neighborhood!");
     return ret;
   }
 
@@ -1441,9 +1470,29 @@ class GenericHypergraph {
     ASSERT(hypernode(memento.v).num_incident_cut_hes == numIncidentCutHEs(memento.v),
            V(memento.v) << V(hypernode(memento.v).num_incident_cut_hes) << V(numIncidentCutHEs(memento.v)));
     
-    //_n_hypergraph.uncontract(memento.u,memento.v);
+    _n_hypergraph.uncontract(memento.u,memento.v);
     ASSERT(verifyNeighborhoodList(memento.u),"Neighborhood list of HN " << memento.u << " didn't match with real neighborhood!");
     ASSERT(verifyNeighborhoodList(memento.v),"Neighborhood list of HN " << memento.v << " didn't match with real neighborhood!");
+    ASSERT([&]() {
+      for(HyperedgeID he : incidentEdges(memento.u)) {
+	for(HypernodeID pin : pins(he)) {
+	  if(!verifyNeighborhoodList(pin)) {
+	    return false;
+	  }
+	}
+      }
+      return true;
+    } (), "Neighborhood list of HN"<<memento.u<<" neighbors didn't match with the real neighborhood!");
+    ASSERT([&]() {
+      for(HyperedgeID he : incidentEdges(memento.v)) {
+	for(HypernodeID pin : pins(he)) {
+	  if(!verifyNeighborhoodList(pin)) {
+	    return false;
+	  }
+	}
+      }
+      return true;
+    } (), "Neighborhood list of HN"<<memento.v<<" neighbors didn't match with the real neighborhood!");
   }
 
   bool isBorderNodeInternal(const HypernodeID hn) const {
