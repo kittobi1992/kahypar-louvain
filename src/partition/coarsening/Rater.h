@@ -94,12 +94,9 @@ class Rater {
       const RatingType tmp = it->value /
                              (weight_u * _hg.nodeWeight(tmp_target));
       DBG(false, "r(" << u << "," << tmp_target << ")=" << tmp);
-      double jaccard_index = 0.0;
-      double tmp_index = _neighborhood.jaccardIndex(u, tmp_target);
-      if (acceptRating(tmp, max_rating) && jaccard_index < tmp_index) {
+      if (acceptRating(tmp, max_rating)) {
         max_rating = tmp;
         target = tmp_target;
-        jaccard_index = tmp_index;
       }
     }
     _tmp_ratings.clear();
@@ -127,10 +124,6 @@ class Rater {
     return _config.coarsening.max_allowed_node_weight;
   }
 
-  Neighborhood& neighborhood() {
-    return _neighborhood;
-  }
-
  private:
   bool belowThresholdNodeWeight(const HypernodeWeight weight_u,
                                 const HypernodeWeight weight_v) const noexcept {
@@ -138,7 +131,7 @@ class Rater {
   }
 
   bool acceptRating(const RatingType tmp, const RatingType max_rating) const noexcept {
-    return max_rating < tmp || (max_rating == tmp);
+    return max_rating < tmp || (max_rating == tmp && TieBreakingPolicy::acceptEqual());
   }
 
   Hypergraph& _hg;

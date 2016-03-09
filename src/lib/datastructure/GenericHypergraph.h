@@ -621,7 +621,6 @@ class GenericHypergraph {
       }
       return true;
     } (), "Neighborhood list of HN"<<u<<" neighbors didn't match with the real neighborhood!");
-
     return Memento(u, u_offset, u_size, v);
   }
 
@@ -956,7 +955,6 @@ class GenericHypergraph {
       }
       return true;
     } (),"Neighborhood hypergraph creation failed!");
-    LOG(_n_hypergraph.getNeighborhoodHypergraphStats());
   }
 
   // Deleting a hypernode amounts to removing the undirected internal edge between
