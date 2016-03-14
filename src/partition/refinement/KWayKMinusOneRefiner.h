@@ -458,8 +458,6 @@ class KWayKMinusOneRefiner final : public IRefiner,
     _already_processed_part.resetUsedEntries();
     Gain fm_gain = 0;
     for (const HyperedgeID he : _hg.incidentEdges(moved_hn)) {
-      const HypernodeID pins_in_source_part_before = _hg.pinCountInPart(he, from_part) + 1;
-      const HypernodeID pins_in_target_part_before = _hg.pinCountInPart(he, to_part) - 1;
       const HypernodeID pins_in_source_part_after = _hg.pinCountInPart(he, from_part);
       const HypernodeID pins_in_target_part_after = _hg.pinCountInPart(he, to_part);
       const bool move_decreased_connectivity = pins_in_source_part_after == 0;
