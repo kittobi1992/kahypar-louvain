@@ -669,11 +669,12 @@ class KWayKMinusOneRefiner final : public IRefiner,
   
   Gain gainInducedByHyperedge(const HypernodeID hn, const HyperedgeID he, 
 				      const PartitionID target_part) const noexcept {
-    PartitionID source_part = _hg.partID(hn);
-    const HypernodeID pins_in_source_part = _hg.pinCountInPart(he,source_part);
+    const HypernodeID pins_in_source_part = _hg.pinCountInPart(he,_hg.partID(hn));
     const HypernodeID pins_in_target_part = _hg.pinCountInPart(he,target_part);
     Gain gain = 0;
-    if(pins_in_source_part == 1 && _hg.connectivity(he) > 1) {
+    if(pins_in_source_part == 1) {
+      // Hypergraph should not contain single-node HEs
+      ASSERT(_hg.connectivity(he) > 1, V(he));
       gain += _hg.edgeWeight(he);
     }
     if(pins_in_target_part == 0) {
@@ -683,8 +684,7 @@ class KWayKMinusOneRefiner final : public IRefiner,
   }
   
   Gain gainInducedByHypergraph(const HypernodeID hn, const PartitionID target_part) const noexcept {
-    const PartitionID source_part = _hg.partID(hn);
-    Gain gain = 0.0;
+    Gain gain = 0;
     for (const HyperedgeID he : _hg.incidentEdges(hn)) {
       ASSERT(_hg.edgeSize(he) > 1, V(he));
       gain += gainInducedByHyperedge(hn,he,target_part);
