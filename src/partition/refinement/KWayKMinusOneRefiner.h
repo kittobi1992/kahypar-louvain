@@ -323,27 +323,27 @@ class KWayKMinusOneRefiner final : public IRefiner,
     if (pin_count_source_part_before_move == 2 && source_part == from_part) {
       for (PartitionID k = 0; k < _config.partition.k; ++k) {
         if (_pq_contains[pin * _config.partition.k + k]) {
-          updatePin(pin, k, he, _hg.edgeWeight(he), max_allowed_part_weight);
+          updatePin(pin, k, he, he_weight, max_allowed_part_weight);
         }
       }
     }
 
     if (pin_count_source_part_before_move == 1) {
       if (_pq_contains[pin * _config.partition.k + from_part]) {
-        updatePin(pin, from_part, he, -_hg.edgeWeight(he), max_allowed_part_weight);
+        updatePin(pin, from_part, he, -he_weight, max_allowed_part_weight);
       }
     }
 
     if (pin_count_target_part_after_move == 1) {
       if (_pq_contains[pin * _config.partition.k + to_part]) {
-        updatePin(pin, to_part, he, _hg.edgeWeight(he), max_allowed_part_weight);
+        updatePin(pin, to_part, he, he_weight, max_allowed_part_weight);
       }
     }
 
     if (pin_count_target_part_after_move == 2 && source_part == to_part) {
       for (PartitionID k = 0; k < _config.partition.k; ++k) {
         if (_pq_contains[pin * _config.partition.k + k]) {
-          updatePin(pin, k, he, -_hg.edgeWeight(he), max_allowed_part_weight);
+          updatePin(pin, k, he, -he_weight, max_allowed_part_weight);
         }
       }
     }
