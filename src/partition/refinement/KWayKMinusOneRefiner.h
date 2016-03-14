@@ -149,7 +149,7 @@ class KWayKMinusOneRefiner final : public IRefiner,
     HyperedgeWeight current_cut = best_cut;
     double current_imbalance = best_imbalance;
     HyperedgeWeight best_kminusone = best_metric[1];
-    HyperedgeWeight initial_kminusone = best_kminusone;
+    const HyperedgeWeight initial_kminusone = best_kminusone;
     HyperedgeWeight current_kminusone = best_kminusone;
 
     PartitionID heaviest_part = heaviestPart();
@@ -269,7 +269,7 @@ class KWayKMinusOneRefiner final : public IRefiner,
     ASSERT(best_kminusone <= initial_kminusone, "kMinusOne quality decreased from "
            << initial_kminusone << " to" << best_kminusone);
     best_metric[0] = best_cut; best_metric[1] = best_kminusone;
-    return FMImprovementPolicy::improvementFound(best_cut, initial_cut, best_imbalance,
+    return FMImprovementPolicy::improvementFound(best_kminusone, initial_kminusone, best_imbalance,
                                                  initial_imbalance, _config.partition.epsilon);
   }
 
