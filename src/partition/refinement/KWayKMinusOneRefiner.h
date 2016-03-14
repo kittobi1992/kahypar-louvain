@@ -1,5 +1,6 @@
 /***************************************************************************
- *  Copyright (C) 2014 Sebastian Schlag <sebastian.schlag@kit.edu>
+ *  Copyright (C) 2016 Sebastian Schlag <sebastian.schlag@kit.edu>
+ *  Copyright (C) 2016 Tobias Heuer <tobias.heuer@gmx.net>
  **************************************************************************/
 
 #ifndef SRC_PARTITION_REFINEMENT_KWAYKMINUSONEREFINER_H_
