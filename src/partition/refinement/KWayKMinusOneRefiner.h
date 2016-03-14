@@ -217,7 +217,7 @@ class KWayKMinusOneRefiner final : public IRefiner,
       HyperedgeWeight old_cut = current_cut;
       current_cut -= fm_gain;
       current_kminusone -= max_gain;
-      _stopping_policy.updateStatistics(fm_gain);
+      _stopping_policy.updateStatistics(max_gain);
 
       ASSERT(current_cut == metrics::hyperedgeCut(_hg),
              V(current_cut) << V(metrics::hyperedgeCut(_hg)));
