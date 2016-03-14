@@ -40,11 +40,6 @@ using defs::PartitionID;
 using defs::HyperedgeWeight;
 using defs::HypernodeWeight;
 
-
-using Gain = HyperedgeWeight;
-
-#define EPS 1e-4
-
 namespace partition {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Weffc++"
@@ -60,6 +55,8 @@ class KWayKMinusOneRefiner final : public IRefiner,
   static const bool dbg_refinement_kway_kminusone_fm_gain_comp = false;
   static const bool dbg_refinement_kway_kminusone_locked_hes = false;
   static const bool dbg_refinement_kway_kminusone_infeasible_moves = false;
+
+  using Gain = HyperedgeWeight;
   using KWayRefinementPQ = KWayPriorityQueue<HypernodeID, Gain,
                                              std::numeric_limits<Gain> >;
 
@@ -105,7 +102,6 @@ class KWayKMinusOneRefiner final : public IRefiner,
   void initializeImpl(const HyperedgeWeight max_gain) noexcept override final {
     if (!_is_initialized) {
       _pq.initialize(_hg.initialNumNodes(), max_gain);
-      // _pq.initialize(_hg.initialNumNodes());
       _is_initialized = true;
     }
   }
@@ -160,7 +156,6 @@ class KWayKMinusOneRefiner final : public IRefiner,
     _stopping_policy.resetStatistics();
 
     const double beta = log(_hg.numNodes());
-    // std::cout << "##################Starting Local Search#####################" << std::endl;
     while (!_pq.empty() && !_stopping_policy.searchShouldStop(num_moves_since_last_improvement,
                                                               _config, beta, best_cut, current_cut)) {
       Gain max_gain = kInvalidGain;
