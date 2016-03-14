@@ -214,7 +214,6 @@ class KWayKMinusOneRefiner final : public IRefiner,
 
       Gain fm_gain = updateNeighbours(max_gain_node, from_part, to_part, max_allowed_part_weights[0]);
 
-      HyperedgeWeight old_cut = current_cut;
       current_cut -= fm_gain;
       current_kminusone -= max_gain;
       _stopping_policy.updateStatistics(max_gain);
@@ -231,14 +230,6 @@ class KWayKMinusOneRefiner final : public IRefiner,
                                                (current_kminusone < best_kminusone);
       const bool improved_balance_less_equal_cut = (current_imbalance < best_imbalance) &&
                                                    (current_kminusone <= best_kminusone);
-      /*LOG(fm_gain << " vs. " << max_gain << ", Old Cut: " << old_cut << ", Current Cut: " << current_cut
-          << ", Best Cut: " <<best_cut<<", " << from_part << " -> " << to_part);*/
-      /*std::cout << "(";
-      for(PartitionID i = 0; i < _config.partition.k; i++)
-    std::cout << "("<<(_pq.isEnabled(i) ? "1" : "\e[31m\e[1m0")<<"\e[0m,"
-          << _pq.size(i) << ","
-          << (_hg.partWeight(i) < max_allowed_part_weights[0])
-          << (i != _config.partition.k-1 ? ") , " : "))\n");*/
 
       ++num_moves_since_last_improvement;
       if (improved_cut_within_balance || improved_balance_less_equal_cut) {
