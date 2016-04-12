@@ -48,24 +48,54 @@ TEST(AHypergraphNeighborhood, SupportsUncontraction) {
 }
 
 
-
-
-
 TEST(AHypergraphNeighborhood, RemovesContractedHypernodeFromNeighborhoods) {
   Hypergraph hypergraph(7, 4, HyperedgeIndexVector { 0, 2, 6, 9,  /*sentinel*/ 12 },
                         HyperedgeVector { 0, 2, 0, 1, 3, 4, 3, 4, 6, 2, 5, 6 });
 
   ASSERT_THAT(hypergraph.neighborhood().of(4),
               ::testing::ContainerEq(std::vector<int>{0,1,3,4,6}));
-  ASSERT_THAT(hypergraph.neighborhood().of(3),
-              ::testing::ContainerEq(std::vector<int>{0,1,3,4,6}));
+  ASSERT_THAT(hypergraph.neighborhood().of(1),
+              ::testing::ContainerEq(std::vector<int>{0,1,3,4}));
+  ASSERT_THAT(hypergraph.neighborhood().of(6),
+              ::testing::ContainerEq(std::vector<int>{2,3,4,5,6}));
 
   hypergraph.contract(0,3);
 
   ASSERT_THAT(hypergraph.neighborhood().of(4),
               ::testing::ContainerEq(std::vector<int>{0,1,4,6}));
+  ASSERT_THAT(hypergraph.neighborhood().of(1),
+              ::testing::ContainerEq(std::vector<int>{0,1,4}));
+  ASSERT_THAT(hypergraph.neighborhood().of(6),
+              ::testing::ContainerEq(std::vector<int>{0,2,4,5,6}));
+
+}
+
+TEST(AHypergraphNeighborhood, UpdatesNeighborhoodsWhenNonAdjacentHypernodesAreContracted) {
+  Hypergraph hypergraph(7, 4, HyperedgeIndexVector { 0, 2, 6, 9,  /*sentinel*/ 12 },
+                        HyperedgeVector { 0, 2, 0, 1, 3, 4, 3, 4, 6, 2, 5, 6 });
+
+  ASSERT_THAT(hypergraph.neighborhood().of(5),
+              ::testing::ContainerEq(std::vector<int>{2,5,6}));
+  ASSERT_THAT(hypergraph.neighborhood().of(1),
+              ::testing::ContainerEq(std::vector<int>{0,1,3,4}));
+  ASSERT_THAT(hypergraph.neighborhood().of(0),
+              ::testing::ContainerEq(std::vector<int>{0,1,2,3,4}));
   ASSERT_THAT(hypergraph.neighborhood().of(3),
-              ::testing::ContainerEq(std::vector<int>{0,1,4,6}));
+              ::testing::ContainerEq(std::vector<int>{0,1,3,4,6}));
+  ASSERT_THAT(hypergraph.neighborhood().of(4),
+              ::testing::ContainerEq(std::vector<int>{0,1,3,4,6}));
+
+  hypergraph.contract(5,1);
+
+  ASSERT_THAT(hypergraph.neighborhood().of(5),
+              ::testing::ContainerEq(std::vector<int>{0,2,3,4,5,6}));
+  ASSERT_THAT(hypergraph.neighborhood().of(0),
+              ::testing::ContainerEq(std::vector<int>{0,2,3,4,5}));
+  ASSERT_THAT(hypergraph.neighborhood().of(3),
+              ::testing::ContainerEq(std::vector<int>{0,3,4,5,6}));
+  ASSERT_THAT(hypergraph.neighborhood().of(4),
+              ::testing::ContainerEq(std::vector<int>{0,3,4,5,6}));
+
 }
 
 
