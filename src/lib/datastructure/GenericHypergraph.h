@@ -941,7 +941,9 @@ class GenericHypergraph {
         }
       }
       std::vector<int> neighbor;
-      neighbor.swap(neighbors.elements());
+      for (const HypernodeID hn :  neighbors) {
+        neighbor.push_back(hn);
+      }
       std::sort(neighbor.begin(), neighbor.end());
       _n_hypergraph.setNeighborhoodOfHypernode(hn,neighbor);
 
