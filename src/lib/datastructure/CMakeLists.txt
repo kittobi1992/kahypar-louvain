@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 include(gmock)
 add_gmock_test(hypergraph_test hypergraph_test.cc)
+add_gmock_test(neighborhood_test neighborhood_test.cc)
 add_gmock_test(priority_queue_test priority_queue_test.cc)
 add_gmock_test(kway_priority_queue_test kway_priority_queue_test.cc)
 add_gmock_test(sparse_set_test sparse_set_test.cc)
