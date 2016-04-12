@@ -79,13 +79,6 @@ class NeighborhoodHypergraph {
 	continue;
       }
 
-      //Ignoring the contraction partner of y in both list
-      if(_neighbors[x][i] == y) {
-	i++; continue;
-      } else if(_neighbors[y][j] == y) {
-	j++; continue;
-      }
-
       //Merging the two lists
       //Note: Special case if both elements are equal
       if(_neighbors[x][i] < _neighbors[y][j]) {
@@ -319,10 +312,6 @@ class NeighborhoodHypergraph {
     return oss.str();
   }
 
-=======
-  std::vector<std::vector<int>> _neighbors;
-
-  
   void printNeighborhood(const HypernodeID u) {
     std::cout << "Neighborhood of HN " << u << std::endl;
     for(int i = 0; i < _neighbors[u].size(); i++) {
