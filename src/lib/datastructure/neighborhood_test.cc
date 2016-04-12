@@ -98,5 +98,22 @@ TEST(AHypergraphNeighborhood, UpdatesNeighborhoodsWhenNonAdjacentHypernodesAreCo
 
 }
 
+TEST(AHypergraphNeighborhood, DoesNotChangeNeighborhoodsUnaffectedByContraction) {
+  Hypergraph hypergraph(7, 4, HyperedgeIndexVector { 0, 2, 6, 9,  /*sentinel*/ 12 },
+                        HyperedgeVector { 0, 2, 0, 1, 3, 4, 3, 4, 6, 2, 5, 6 });
+
+  ASSERT_THAT(hypergraph.neighborhood().of(2),
+              ::testing::ContainerEq(std::vector<int>{0,2,5,6}));
+  ASSERT_THAT(hypergraph.neighborhood().of(6),
+              ::testing::ContainerEq(std::vector<int>{2,3,4,5,6}));
+
+  hypergraph.contract(5,1);
+
+  ASSERT_THAT(hypergraph.neighborhood().of(2),
+              ::testing::ContainerEq(std::vector<int>{0,2,5,6}));
+  ASSERT_THAT(hypergraph.neighborhood().of(6),
+              ::testing::ContainerEq(std::vector<int>{2,3,4,5,6}));
+
+}
 
 }
