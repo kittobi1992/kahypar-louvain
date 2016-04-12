@@ -1474,6 +1474,10 @@ class GenericHypergraph {
     return hyperedge(he);
   }
 
+  NeighborhoodHypergraph& neighborhood() {
+    return _n_hypergraph;
+  }
+
  private:
   FRIEND_TEST(AHypergraph, DisconnectsHypernodeFromHyperedge);
   FRIEND_TEST(AHypergraph, RemovesHyperedges);
