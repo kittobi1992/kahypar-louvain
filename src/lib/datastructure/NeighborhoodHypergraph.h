@@ -350,6 +350,10 @@ class NeighborhoodHypergraph {
     return static_cast<double>(sizeOfIntersection(u,v)) / std::max(_neighbors[u].size(), _neighbors[v].size());
   }
 
+  const std::vector<int>& of(const HypernodeID u) const {
+    return _neighbors[u];
+  }
+
 
   std::vector<std::vector<int>> _neighbors;
 
