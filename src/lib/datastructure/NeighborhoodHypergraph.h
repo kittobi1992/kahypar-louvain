@@ -319,9 +319,42 @@ class NeighborhoodHypergraph {
     }
     std::cout << std::endl << "---------------------------------" << std::endl;
   }
-  
+
+    HypernodeID sizeOfIntersection(const HypernodeID u, const HypernodeID v) const {
+    std::vector<HypernodeID> intersection;
+    std::set_intersection(_neighbors[u].begin(),
+                   _neighbors[u].end(),
+                   _neighbors[v].begin(),
+                   _neighbors[v].end(), std::back_inserter(intersection));
+    return intersection.size();
+  }
+
+  HypernodeID sizeOfUnion(const HypernodeID u, const HypernodeID v) const {
+    std::vector<HypernodeID> set_union;
+    std::set_union(_neighbors[u].begin(),
+                   _neighbors[u].end(),
+                   _neighbors[v].begin(),
+                   _neighbors[v].end(), std::back_inserter(set_union));
+    return set_union.size();
+  }
+
+  double jaccardIndex(const HypernodeID u, const HypernodeID v) const {
+    return static_cast<double>(sizeOfIntersection(u,v)) / sizeOfUnion(u,v);
+  }
+
+  double ccMin(const HypernodeID u, const HypernodeID v) const {
+    return static_cast<double>(sizeOfIntersection(u,v)) / std::min(_neighbors[u].size(), _neighbors[v].size());
+  }
+
+  double ccMax(const HypernodeID u, const HypernodeID v) const {
+    return static_cast<double>(sizeOfIntersection(u,v)) / std::max(_neighbors[u].size(), _neighbors[v].size());
+  }
+
+
+  std::vector<std::vector<int>> _neighbors;
+
 private:
-  
+
   void swapToSortedPosition(std::vector<int>& neighbor, std::vector<int>::iterator pos) {
 	while((pos != neighbor.begin() && *pos <= *(pos-1)) 
 	      ||  (pos+1 != neighbor.end() && *pos >= *(pos+1))) {
