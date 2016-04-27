@@ -5,7 +5,7 @@ include_directories(${PROJECT_SOURCE_DIR}/src)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 
 #ensure that gmock is built before tests are executed
-include(${CMAKE_SOURCE_DIR}/cmake/modules/ExternalProject.cmake)
+include(/usr/share/cmake-2.8/Modules/ExternalProject.cmake)
 ExternalProject_Add(gmock
   SOURCE_DIR "${PROJECT_SOURCE_DIR}/external_tools/gmock"
   INSTALL_COMMAND "")

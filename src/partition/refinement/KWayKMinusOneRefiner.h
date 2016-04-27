@@ -29,12 +29,14 @@
 #include "partition/refinement/IRefiner.h"
 #include "partition/refinement/KwayGainCache.h"
 #include "partition/refinement/policies/FMImprovementPolicies.h"
+#include "partition/refinement/DeltaGainCollector.h"
 #include "tools/RandomFunctions.h"
 
 using datastructure::KWayPriorityQueue;
 using datastructure::FastResetVector;
 using datastructure::FastResetBitVector;
 using datastructure::InsertOnlyConnectivitySet;
+
 
 using defs::Hypergraph;
 using defs::HypernodeID;
@@ -98,6 +100,7 @@ class KWayKMinusOneRefiner final : public IRefiner,
     _unremovable_he_parts(_hg.initialNumEdges() * config.partition.k, 0),
     _pq(_config.partition.k),
     _gain_cache(_hg.initialNumNodes(), _config.partition.k),
+    _delta_gain(_hg.initialNumNodes(), _config.partition.k),
     _stopping_policy() {
     _performed_moves.reserve(_hg.initialNumNodes());
     _hns_to_activate.reserve(_hg.initialNumNodes());
@@ -684,7 +687,8 @@ class KWayKMinusOneRefiner final : public IRefiner,
                         const PartitionID to_part, const HypernodeWeight max_allowed_part_weight)
   noexcept {
     _new_adjacent_part.resetUsedEntries();
-
+    _delta_gain.clear();
+    
     bool moved_hn_remains_conntected_to_from_part = false;
     for (const HyperedgeID he : _hg.incidentEdges(moved_hn)) {
       const HypernodeID pins_in_source_part_after = _hg.pinCountInPart(he, from_part);
@@ -733,6 +737,10 @@ class KWayKMinusOneRefiner final : public IRefiner,
         } (), "Error in locking of he/parts!");
     }
 
+    for(auto update_pair : _delta_gain) {
+      _pq.updateKeyBy(update_pair.first, update_pair.second, _delta_gain.get(update_pair));
+    }
+    
     _gain_cache.updateFromAndToPartOfMovedHN(moved_hn, from_part, to_part,
                                              moved_hn_remains_conntected_to_from_part);
 
@@ -888,7 +896,7 @@ class KWayKMinusOneRefiner final : public IRefiner,
         << " from gain " << _pq.key(pin, part) << " to " << _pq.key(pin, part) + delta
         << " (to_part=" << part << ", ExpectedGain="
         << gainInducedByHypergraph(pin, part) << ")");
-    _pq.updateKeyBy(pin, part, delta);
+    _delta_gain.addDelta(std::make_pair(pin,part),delta);
   }
 
   template <bool invalidate_hn = false>
@@ -1071,6 +1079,7 @@ class KWayKMinusOneRefiner final : public IRefiner,
 
   KWayRefinementPQ _pq;
   GainCache _gain_cache;
+  DeltaGainCollector<Gain> _delta_gain;
   StoppingPolicy _stopping_policy;
 };
 #pragma GCC diagnostic pop

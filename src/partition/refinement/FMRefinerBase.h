@@ -9,10 +9,13 @@
 
 #include "lib/definitions.h"
 #include "partition/Configuration.h"
+#include "partition/refinement/DeltaGainCollector.h"
 
 using defs::Hypergraph;
 using defs::HypernodeID;
 using defs::HyperedgeID;
+
+using partition::DeltaGainCollector;
 
 namespace partition {
 static const bool dbg_refinement_fm_border_node_check = false;
@@ -29,7 +32,8 @@ class FMRefinerBase {
 
   FMRefinerBase(Hypergraph& hypergraph, const Configuration& config) noexcept :
     _hg(hypergraph),
-    _config(config) { }
+    _config(config),
+    _hypernode_connected_to_part(_hg.initialNumNodes(),_config.partition.k) { }
 
   ~FMRefinerBase() { }
 
@@ -39,12 +43,18 @@ class FMRefinerBase {
   FMRefinerBase(FMRefinerBase&&) = delete;
   FMRefinerBase& operator= (FMRefinerBase&&) = delete;
 
-  bool hypernodeIsConnectedToPart(const HypernodeID pin, const PartitionID part) const noexcept {
+  bool hypernodeIsConnectedToPart(const HypernodeID pin, const PartitionID part) noexcept {
+    std::pair<HypernodeID,PartitionID> key = std::make_pair(pin,part);
+    if(_hypernode_connected_to_part.isValidEntry(key)) {
+      return _hypernode_connected_to_part.get(key);
+    }
     for (const HyperedgeID he : _hg.incidentEdges(pin)) {
       if (_hg.pinCountInPart(he, part) > 0) {
+	_hypernode_connected_to_part.add(key,true);
         return true;
       }
     }
+    _hypernode_connected_to_part.add(key,false);
     return false;
   }
 
@@ -61,6 +71,7 @@ class FMRefinerBase {
     ASSERT(_hg.isBorderNode(hn), "Hypernode " << hn << " is not a border node!");
     DBG(dbg_refinement_kway_fm_move, "moving HN" << hn << " from " << from_part
         << " to " << to_part << " (weight=" << _hg.nodeWeight(hn) << ")");
+    _hypernode_connected_to_part.clear();
     _hg.changeNodePart(hn, from_part, to_part);
   }
 
@@ -91,6 +102,7 @@ class FMRefinerBase {
 
   Hypergraph& _hg;
   const Configuration& _config;
+  DeltaGainCollector<bool> _hypernode_connected_to_part;
 };
 }  // namespace partition
 #endif  // SRC_PARTITION_REFINEMENT_FMREFINERBASE_H_
