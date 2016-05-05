@@ -39,13 +39,10 @@ class UpdateElement {
 public:
   UpdateElement(PartitionID k) : 
     _k(k), 
-    _hypernodeIsConnectedToFromPart(kInvalidPart),
-    _valid(0),
-    _size(0) {  
+    _hypernodeIsConnectedToFromPart(kInvalidPart) {  
      static_assert(sizeof(Gain) == sizeof(PartitionID), "Size is not correct");
      for (PartitionID i = 0; i < k; ++i) {
-       new(&_size + 1 + i)PartitionID(std::numeric_limits<PartitionID>::max());
-       new(reinterpret_cast<Element*>(&_size + _k + 1) + i)Element(kInvalidPart,0);
+       new(&_hypernodeIsConnectedToFromPart + 1 + i)Gain(kInvalidGain);
      }   
   }
 
@@ -54,89 +51,51 @@ public:
   UpdateElement& operator= (const UpdateElement&) = delete;
   UpdateElement& operator= (UpdateElement&&) = delete;
   
-  const PartitionID* begin()  const {
-    return &_size + 1;
-  }
-
-  const PartitionID* end() const {
-    ASSERT(_size <= _k, V(_size));
-    return &_size + 1 + _size;
-  }
   
-  __attribute__ ((always_inline)) void update(PartitionID part, Gain delta) {
+  __attribute__ ((always_inline)) bool update(PartitionID part, Gain delta) {
     ASSERT(part < _k, V(part));
-    if(sparse(part).index == kInvalidPart) {
-      sparse(part).index = _size;
-      dense(_size++) = part;
-    }
-    sparse(part).gain += delta;
+    Gain gain = sparse(part);
+    sparse(part) = (gain == kInvalidPart ? delta : gain + delta);
+    return gain == kInvalidPart;
   }
   
   __attribute__ ((always_inline)) Gain gain(PartitionID part) {
-    Gain gain = sparse(part).gain;
-    sparse(part).gain = 0;
-    sparse(part).index = kInvalidPart;
+    Gain gain = sparse(part);
+    sparse(part) = kInvalidGain;
     return gain;
   }
   
-  PartitionID isHypernodeConnectedToFromPart() {
-    return _hypernodeIsConnectedToFromPart;
-  }
-  
-  void setHypernodeIsConnectedToFromPart(bool hypernodeIsConnectedToFromPart) {
-    _hypernodeIsConnectedToFromPart = hypernodeIsConnectedToFromPart;
-  }
   
   __attribute__ ((always_inline)) void clear() {
-    _size = 0;
     _hypernodeIsConnectedToFromPart = kInvalidPart;
   }
   
-  __attribute__ ((always_inline)) bool makeValid(const size_t threshold) {
-    _valid = threshold;
-  }
-  
-  __attribute__ ((always_inline)) bool isValid(const size_t threshold) {
-    return _valid >= threshold;
-  }
   
 private:
     // To avoid code duplication we implement non-const version in terms of const version
-    PartitionID & dense(const PartitionID part) {
-      return const_cast<PartitionID&>(static_cast<const UpdateElement&>(*this).dense(part));
+    Gain & sparse(const PartitionID part) {
+      return const_cast<Gain&>(static_cast<const UpdateElement&>(*this).sparse(part));
     }
 
-    const PartitionID & dense(const PartitionID part) const {
+    const Gain & sparse(const PartitionID part) const {
       ASSERT(part < _k, V(part));
-      return *(&_size + 1 + part);
+      return *(&_hypernodeIsConnectedToFromPart + 1 + part);
     }
 
-    // To avoid code duplication we implement non-const version in terms of const version
-    Element & sparse(const PartitionID part) {
-      return const_cast<Element&>(static_cast<const UpdateElement&>(*this).sparse(part));
-    }
 
-    const Element & sparse(const PartitionID part) const {
-      ASSERT(part < _k, V(part));
-      return reinterpret_cast<const Element*>(&_size + _k + 1)[part];
-    }
-  
   PartitionID _k;
   PartitionID _hypernodeIsConnectedToFromPart;
-  size_t _valid;
-  PartitionID _size;
 };
 
 public:
-  static constexpr Gain kNotCached = std::numeric_limits<Gain>::max();
+  static constexpr Gain kInvalidGain = std::numeric_limits<Gain>::max();
   static constexpr PartitionID kInvalidPart = std::numeric_limits<PartitionID>::max();
   
   explicit KWayUpdateNeighbor(HypernodeID num_hypernodes, PartitionID k) :
     _sparse(nullptr),
-    _dense(std::make_unique<HypernodeID[]>(num_hypernodes)),
+    _dense(std::make_unique<std::pair<HypernodeID,PartitionID>[]>(num_hypernodes)),
     _k(k),
     _num_hypernodes(num_hypernodes),
-    _threshold(1),
     _size(0) { 
       _sparse = static_cast<Byte*>(malloc(num_hypernodes * sizeOfUpdateElement()));
       for (HypernodeID hn = 0; hn < num_hypernodes; ++hn) {
@@ -158,36 +117,38 @@ public:
     free(_sparse);
   }
   
-  HypernodeID* begin() const {
+  std::pair<HypernodeID,PartitionID>* begin() const {
     return _dense.get();
   }
 
-  HypernodeID* end() const {
+  std::pair<HypernodeID,PartitionID>* end() const {
     return _dense.get() + _size;
   }  
 
   __attribute__ ((always_inline)) void update(HypernodeID hn, PartitionID part, Gain delta) {
       UpdateElement* ue = updateElement(hn);
-      ue->update(part,delta);
-      //std::cout << "("<<hn<<","<<!ue->isValid(_threshold) << ","<<_size<<")" << std::endl;
-      if(!ue->isValid(_threshold)) {
-	_dense[_size++] = hn;
-	ue->makeValid(_threshold);
+      if(ue->update(part,delta)) {
+	_dense[_size++] = std::make_pair(hn,part);
       }
+  }
+  
+  __attribute__ ((always_inline)) Gain deltaGain(const HypernodeID hn, const PartitionID part) {
+    return updateElement(hn)->gain(part);
   }
   
   
   __attribute__ ((always_inline)) void updatePQ(KWayRefinementPQ& pq) {
-    for(const HypernodeID* hn = begin(); hn != end(); hn++) {
+    for(const std::pair<HypernodeID,PartitionID>* hp = begin(); hp != end(); ++hp) {
      //std::cout << *hn << std::endl;
-      UpdateElement* ue = updateElement(*hn);
-      for(const PartitionID* part = ue->begin(); part != ue->end(); part++) {
-	pq.updateKeyBy(*hn,*part,ue->gain(*part));
-      }
+      UpdateElement* ue = updateElement(hp->first);
+      pq.updateKeyBy(hp->first,hp->second,ue->gain(hp->second));
       ue->clear();
     }
     _size = 0;
-    _threshold++;
+  }
+  
+  __attribute__ ((always_inline)) void clear() {
+    _size = 0;
   }
 
 private:
@@ -202,14 +163,13 @@ private:
   }
   
   size_t sizeOfUpdateElement() const {
-    return sizeof(UpdateElement) + _k * sizeof(Element) + _k * sizeof(PartitionID);
+    return sizeof(UpdateElement) + _k * sizeof(Gain);
   }
   
   Byte* _sparse;
-  std::unique_ptr<HypernodeID[]> _dense;
+  std::unique_ptr<std::pair<HypernodeID,PartitionID>[]> _dense;
   PartitionID _k;
   HypernodeID _num_hypernodes;
-  size_t _threshold;
   size_t _size;
 };
 

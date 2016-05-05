@@ -687,6 +687,7 @@ class KWayKMinusOneRefiner final : public IRefiner,
                         const PartitionID to_part, const HypernodeWeight max_allowed_part_weight)
   noexcept {
     _new_adjacent_part.resetUsedEntries();
+    _update_neighbor.clear();
     
     bool moved_hn_remains_conntected_to_from_part = false;
     for (const HyperedgeID he : _hg.incidentEdges(moved_hn)) {
@@ -737,7 +738,9 @@ class KWayKMinusOneRefiner final : public IRefiner,
     }
 
     //_update_neighbor.print();
-    _update_neighbor.updatePQ(_pq);
+    for(const std::pair<HypernodeID,PartitionID>& update : _update_neighbor) {
+      _pq.updateKeyBy(update.first,update.second,_update_neighbor.deltaGain(update.first,update.second));
+    }
     
     _gain_cache.updateFromAndToPartOfMovedHN(moved_hn, from_part, to_part,
                                              moved_hn_remains_conntected_to_from_part);
@@ -1016,7 +1019,7 @@ class KWayKMinusOneRefiner final : public IRefiner,
   void ASSERT_THAT_CACHE_IS_VALID_FOR_HN(const HypernodeID hn) const {
     std::vector<bool> adjacent_parts(_config.partition.k, false);
     for (PartitionID part = 0; part < _config.partition.k; ++part) {
-      if (hypernodeIsConnectedToPart(hn, part)) {
+      if(hypernodeIsConnectedToPart(hn, part)) {
         adjacent_parts[part] = true;
       }
       if (_gain_cache.entry(hn, part) != GainCache::kNotCached) {
