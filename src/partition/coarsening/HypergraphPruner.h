@@ -117,10 +117,7 @@ class HypergraphPruner {
   // to check the pins of both HEs in order to determine whether they are really equal or not.
   // This check is only performed, if the sizes of both HEs match - otherwise they can't be
   // parallel. In case we detect a parallel HE, it is removed from the graph and we proceed by
-  // checking if there are more fingerprints with the same hash value. Since we remove (i.e.disable)
-  // HEs from the graph during this process, we have to ensure that both i and j point to finger-
-  // prints that correspond to enabled HEs. This is necessary because we currently do not delete a
-  // fingerprint after the corresponding hyperedge is removed.
+  // checking if there are more fingerprints with the same hash value.
   HyperedgeID removeParallelHyperedges(Hypergraph& hypergraph,
                                        const HypernodeID u, int& begin, int& size) noexcept {
     // ASSERT(_history.top().contraction_memento.u == u,
@@ -145,14 +142,13 @@ class HypergraphPruner {
     while (i < _fingerprints.size()) {
       size_t j = i + 1;
       DBG(dbg_coarsening_fingerprinting, "i=" << i << ", j=" << j);
-      if (j < _fingerprints.size() && hypergraph.edgeIsEnabled(_fingerprints[i].id) &&
-          _fingerprints[i].hash == _fingerprints[j].hash) {
-        fillProbeBitset(hypergraph, _fingerprints[i].id);
+      if (hypergraph.edgeIsEnabled(_fingerprints[i].id)) {
         while (j < _fingerprints.size() && _fingerprints[i].hash == _fingerprints[j].hash) {
           DBG(dbg_coarsening_fingerprinting,
               _fingerprints[i].hash << "==" << _fingerprints[j].hash);
           DBG(dbg_coarsening_fingerprinting,
               "Size:" << _fingerprints[i].size << "==" << _fingerprints[j].size);
+          fillProbeBitset(hypergraph, _fingerprints[i].id);
           if (_fingerprints[i].size == _fingerprints[j].size &&
               hypergraph.edgeIsEnabled(_fingerprints[j].id) &&
               isParallelHyperedge(hypergraph, _fingerprints[j].id)) {
@@ -163,8 +159,39 @@ class HypergraphPruner {
           ++j;
         }
       }
+      // We need pairwise comparisons for all HEs with same hash.
       ++i;
     }
+
+    ASSERT([&]() {
+        for (auto edge_it = hypergraph.incidentEdges(u).first;
+             edge_it != hypergraph.incidentEdges(u).second; ++edge_it) {
+          _contained_hypernodes.resetAllBitsToFalse();
+          for (const HypernodeID pin : hypergraph.pins(*edge_it)) {
+            _contained_hypernodes.setBit(pin, 1);
+          }
+
+          for (auto next_edge_it = edge_it + 1; next_edge_it != hypergraph.incidentEdges(u).second;
+               ++next_edge_it) {
+            // size check is necessary. Otherwise we might iterate over the pins of a small HE that
+            // is completely contained in a larger one and think that both are parallel.
+            if (hypergraph.edgeSize(*edge_it) == hypergraph.edgeSize(*next_edge_it)) {
+              bool parallel = true;
+              for (const HypernodeID pin :  hypergraph.pins(*next_edge_it)) {
+                parallel &= _contained_hypernodes[pin];
+              }
+              if (parallel) {
+                hypergraph.printEdgeState(*edge_it);
+                hypergraph.printEdgeState(*next_edge_it);
+                return false;
+              }
+            }
+          }
+        }
+        return true;
+      } (), "parallel HE removal failed");
+
+
     return removed_parallel_hes;
   }
 
