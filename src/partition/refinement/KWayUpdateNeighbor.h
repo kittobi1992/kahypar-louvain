@@ -13,6 +13,7 @@
 #include "lib/datastructure/SparseSet.h"
 #include "lib/datastructure/KWayPriorityQueue.h"
 
+using defs::Hypergraph;
 using datastructure::SparseSet;
 using datastructure::KWayPriorityQueue;
 
@@ -39,7 +40,7 @@ class UpdateElement {
 public:
   UpdateElement(PartitionID k) : 
     _k(k), 
-    _hypernodeIsConnectedToFromPart(kInvalidPart) {  
+    _hypernodeIsConnectedToFromPart(0) {  
      static_assert(sizeof(Gain) == sizeof(PartitionID), "Size is not correct");
      for (PartitionID i = 0; i < k; ++i) {
        new(&_hypernodeIsConnectedToFromPart + 1 + i)Gain(kInvalidGain);
@@ -51,6 +52,13 @@ public:
   UpdateElement& operator= (const UpdateElement&) = delete;
   UpdateElement& operator= (UpdateElement&&) = delete;
   
+  __attribute__ ((always_inline)) PartitionID setConnectedToFromPart(PartitionID connectedToFromPart) {
+    _hypernodeIsConnectedToFromPart = connectedToFromPart;
+  }
+  
+   __attribute__ ((always_inline)) PartitionID isConnectedToFromPart() {
+    return _hypernodeIsConnectedToFromPart;
+  }
   
   __attribute__ ((always_inline)) bool update(PartitionID part, Gain delta) {
     ASSERT(part < _k, V(part));
@@ -63,11 +71,6 @@ public:
     Gain gain = sparse(part);
     sparse(part) = kInvalidGain;
     return gain;
-  }
-  
-  
-  __attribute__ ((always_inline)) void clear() {
-    _hypernodeIsConnectedToFromPart = kInvalidPart;
   }
   
   
@@ -96,7 +99,8 @@ public:
     _dense(std::make_unique<std::pair<HypernodeID,PartitionID>[]>(num_hypernodes)),
     _k(k),
     _num_hypernodes(num_hypernodes),
-    _size(0) { 
+    _size(0),
+    _threshold(2) { 
       _sparse = static_cast<Byte*>(malloc(num_hypernodes * sizeOfUpdateElement()));
       for (HypernodeID hn = 0; hn < num_hypernodes; ++hn) {
 	new(updateElement(hn))UpdateElement(k);
@@ -125,6 +129,24 @@ public:
     return _dense.get() + _size;
   }  
 
+  __attribute__ ((always_inline)) bool hypernodeIsConnectedToPart(const Hypergraph& hg, 
+								  const HypernodeID pin, 
+								  const PartitionID part) {
+    UpdateElement* ue = updateElement(pin);
+    PartitionID isConnectedToFromPart = ue->isConnectedToFromPart();
+    if(isConnectedToFromPart > _threshold-2) {
+      return isConnectedToFromPart == _threshold;
+    }
+    for (const HyperedgeID he : hg.incidentEdges(pin)) {
+      if (hg.pinCountInPart(he, part) > 0) {
+	ue->setConnectedToFromPart(_threshold);
+        return true;
+      }
+    }
+    ue->setConnectedToFromPart(_threshold-1);
+    return false;
+  }
+  
   __attribute__ ((always_inline)) void update(HypernodeID hn, PartitionID part, Gain delta) {
       UpdateElement* ue = updateElement(hn);
       if(ue->update(part,delta)) {
@@ -137,18 +159,9 @@ public:
   }
   
   
-  __attribute__ ((always_inline)) void updatePQ(KWayRefinementPQ& pq) {
-    for(const std::pair<HypernodeID,PartitionID>* hp = begin(); hp != end(); ++hp) {
-     //std::cout << *hn << std::endl;
-      UpdateElement* ue = updateElement(hp->first);
-      pq.updateKeyBy(hp->first,hp->second,ue->gain(hp->second));
-      ue->clear();
-    }
-    _size = 0;
-  }
-  
   __attribute__ ((always_inline)) void clear() {
     _size = 0;
+    _threshold += 2;
   }
 
 private:
@@ -171,6 +184,7 @@ private:
   PartitionID _k;
   HypernodeID _num_hypernodes;
   size_t _size;
+  PartitionID _threshold;
 };
 
 }  // namespace partition

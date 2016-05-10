@@ -431,7 +431,7 @@ class KWayKMinusOneRefiner final : public IRefiner,
                           const HypernodeWeight max_allowed_part_weight) noexcept __attribute__ ((always_inline)) {
     ONLYDEBUG(he);
     if (move_decreased_connectivity && _gain_cache.entryExists(pin, from_part) &&
-        !hypernodeIsConnectedToPart(pin, from_part)) {
+        !_update_neighbor.hypernodeIsConnectedToPart(_hg, pin, from_part)) {
       _pq.remove(pin, from_part);
       _gain_cache.removeEntryDueToConnectivityDecrease(pin, from_part);
       // LOG("normal connectivity decrease for " << pin);
@@ -995,7 +995,7 @@ class KWayKMinusOneRefiner final : public IRefiner,
       ASSERT(_gain_cache.entry(hn, part) == gainInducedByHypergraph(hn, part),
              V(hn) << V(part) << V(_gain_cache.entry(hn, part)) <<
              V(gainInducedByHypergraph(hn, part)));
-      ASSERT(hypernodeIsConnectedToPart(hn, part), V(hn) << V(part));
+      ASSERT(_update_neighbor.hypernodeIsConnectedToPart(_hg, hn, part), V(hn) << V(part));
       DBG(false && hn == 12518, " inserting " << V(hn) << V(part)
           << V(_gain_cache.entry(hn, part)));
       _pq.insert(hn, part, _gain_cache.entry(hn, part));
