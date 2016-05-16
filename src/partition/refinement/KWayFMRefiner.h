@@ -28,6 +28,7 @@
 #include "partition/refinement/IRefiner.h"
 #include "partition/refinement/KwayGainCache.h"
 #include "partition/refinement/policies/FMImprovementPolicies.h"
+#include "partition/refinement/KWayUpdateNeighbor.h"
 #include "tools/RandomFunctions.h"
 
 using datastructure::KWayPriorityQueue;
@@ -87,6 +88,7 @@ class KWayFMRefiner final : public IRefiner,
     _locked_hes(_hg.initialNumEdges(), kFree),
     _pq(_config.partition.k),
     _gain_cache(_hg.initialNumNodes(), _config.partition.k),
+    _update_neighbor(_hg.initialNumNodes(), _config.partition.k),
     _stopping_policy() {
     _performed_moves.reserve(_hg.initialNumNodes());
     _hns_to_activate.reserve(_hg.initialNumNodes());
@@ -433,7 +435,7 @@ class KWayFMRefiner final : public IRefiner,
   __attribute__ ((always_inline)) {
     ONLYDEBUG(he);
     if (move_decreased_connectivity && _gain_cache.entryExists(pin, from_part) &&
-        !hypernodeIsConnectedToPart(pin, from_part)) {
+        !_update_neighbor.hypernodeIsConnectedToPart(_hg, pin, from_part)) {
       _pq.remove(pin, from_part);
       // LOG("normal connectivity decrease for " << pin << V(from_part));
       _gain_cache.removeEntryDueToConnectivityDecrease(pin, from_part);
@@ -475,7 +477,7 @@ class KWayFMRefiner final : public IRefiner,
   __attribute__ ((always_inline)) {
     ONLYDEBUG(he);
     if (move_decreased_connectivity && _gain_cache.entryExists(pin, from_part) &&
-        !hypernodeIsConnectedToPart(pin, from_part)) {
+        !_update_neighbor.hypernodeIsConnectedToPart(_hg, pin, from_part)) {
       DBG(dbg_refinement_kway_gain_caching && hn_to_debug == pin,
           "removing cache entry for HN " << pin << " part=" << from_part);
       _gain_cache.removeEntryDueToConnectivityDecrease(pin, from_part);
@@ -782,6 +784,7 @@ class KWayFMRefiner final : public IRefiner,
                         const PartitionID to_part, const HypernodeWeight max_allowed_part_weight)
   noexcept {
     _already_processed_part.resetUsedEntries();
+    _update_neighbor.clear();
 
     bool moved_hn_remains_conntected_to_from_part = false;
     for (const HyperedgeID he : _hg.incidentEdges(moved_hn)) {
@@ -811,7 +814,7 @@ class KWayFMRefiner final : public IRefiner,
         updatePinsOfHyperedgeRemainingLocked(moved_hn, from_part, to_part, he,
                                              max_allowed_part_weight);
       }
-
+      
       const HypernodeID pin_count_from_part_before_move = _hg.pinCountInPart(he, from_part) + 1;
       const HypernodeID pin_count_to_part_before_move = _hg.pinCountInPart(he, to_part) - 1;
       const HypernodeID pin_count_to_part_after_move = pin_count_to_part_before_move + 1;
@@ -835,7 +838,12 @@ class KWayFMRefiner final : public IRefiner,
         }
       }
     }
-
+    
+              
+    for(const std::pair<HypernodeID,PartitionID>& update : _update_neighbor) {
+      _pq.updateKeyBy(update.first,update.second,_update_neighbor.deltaGain(update.first,update.second));
+    }
+    
     _gain_cache.updateFromAndToPartOfMovedHN(moved_hn, from_part, to_part,
                                              moved_hn_remains_conntected_to_from_part);
 
@@ -996,7 +1004,8 @@ class KWayFMRefiner final : public IRefiner,
           "updating gain of HN " << pin
           << " from gain " << _pq.key(pin, part) << " to " << _pq.key(pin, part) + delta << " (to_part="
           << part << ")");
-      _pq.updateKeyBy(pin, part, delta);
+      //_pq.updateKeyBy(pin, part, delta);
+      _update_neighbor.update(pin,part,delta);
       _gain_cache.updateExistingEntry(pin, part, delta);
     }
   }
@@ -1189,6 +1198,7 @@ class KWayFMRefiner final : public IRefiner,
   FastResetVector<PartitionID> _locked_hes;
   KWayRefinementPQ _pq;
   GainCache _gain_cache;
+  KWayUpdateNeighbor _update_neighbor;
   StoppingPolicy _stopping_policy;
 };
 

@@ -408,7 +408,7 @@ class KWayKMinusOneRefiner final : public IRefiner,
                                   const bool move_increased_connectivity) noexcept __attribute__ ((always_inline)) {
     ONLYDEBUG(he);
     if (move_decreased_connectivity && _gain_cache.entryExists(pin, from_part) &&
-        !hypernodeIsConnectedToPart(pin, from_part)) {
+        !_update_neighbor.hypernodeIsConnectedToPart(_hg, pin, from_part)) {
       DBG(dbg_refinement_kway_kminusone_gain_caching && hn_to_debug == pin,
           "removing cache entry for HN " << pin << " part=" << from_part);
       _gain_cache.removeEntryDueToConnectivityDecrease(pin, from_part);
