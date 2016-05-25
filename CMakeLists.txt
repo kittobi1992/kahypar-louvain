@@ -16,7 +16,7 @@ message(STATUS "Setting BOOST_ROOT to ${BOOST_ROOT}")
 endif(${HOSTNAME} MATCHES "i10pc.*")
 
 #ensure that gmock is built before tests are executed
-include(${CMAKE_SOURCE_DIR}/cmake/modules/ExternalProject.cmake)
+include(/usr/share/cmake-2.8/Modules/ExternalProject.cmake)
 ExternalProject_Add(gmock
   SOURCE_DIR "${PROJECT_SOURCE_DIR}/external_tools/gmock"
   CMAKE_ARGS "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
