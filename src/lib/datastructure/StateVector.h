@@ -18,7 +18,7 @@ using std::size_t;
 using std::uint16_t;
 
 namespace datastructure {
-template <typename UnderlyingType = std::uint16_t,
+template <typename UnderlyingType = std::int16_t,
 	  size_t num_states = 1>
 class StateVector {
  public:
@@ -31,7 +31,7 @@ class StateVector {
 
   StateVector() :
     _v(nullptr),
-    _threshold(1),
+    _threshold(0),
     _size(0) { }
 
   StateVector(const StateVector&) = delete;
@@ -46,22 +46,27 @@ class StateVector {
     swap(_threshold, other._threshold);
   }
 
-  UnderlyingType operator[] (const size_t i) const {
-    return getState(i);
+  __attribute__ ((always_inline)) UnderlyingType operator[] (const size_t i) const {
+    UnderlyingType tmp = _v[i];
+    return (tmp > _threshold) ? tmp - _threshold : 0;
   }
   
-  void setState(const size_t i, const UnderlyingType state) {
+  __attribute__ ((always_inline)) bool isEntryValid(const size_t i) const {
+    return _v[i] > _threshold;
+  }
+  
+  __attribute__ ((always_inline)) void setState(const size_t i, const UnderlyingType state) const {
     ASSERT(value <= num_states, "Value is greater than number of states!");
-    _v[i] = _threshold  + state - 1;
+    _v[i] = _threshold  + state;
   }
 
 
-  void reset() {
+  __attribute__ ((always_inline)) void reset() {
     if (_threshold >= std::numeric_limits<UnderlyingType>::max() - num_states) {
       for (size_t i = 0; i != _size; ++i) {
         _v[i] = 0;
       }
-      _threshold = 1;
+      _threshold = 0;
     }
     else {
       _threshold += num_states;
@@ -76,9 +81,6 @@ class StateVector {
   }
 
  private:
-  UnderlyingType getState(size_t i) const {
-    return (_v[i] >= _threshold) ? _v[i] - _threshold + 1 : 0;
-  }
 
   std::unique_ptr<UnderlyingType[]> _v;
   UnderlyingType _threshold;

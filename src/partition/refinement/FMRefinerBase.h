@@ -9,6 +9,9 @@
 
 #include "lib/definitions.h"
 #include "partition/Configuration.h"
+#include "lib/datastructure/StateVector.h"
+
+using datastructure::StateVector;
 
 using defs::Hypergraph;
 using defs::HypernodeID;
@@ -29,7 +32,10 @@ class FMRefinerBase {
 
   FMRefinerBase(Hypergraph& hypergraph, const Configuration& config) noexcept :
     _hg(hypergraph),
-    _config(config) { }
+    _config(config),
+    _connectedToPartCache(hypergraph.initialNumNodes()),
+    _queries(0),
+    _cache_hits(0) { }
 
   ~FMRefinerBase() { }
 
@@ -39,12 +45,23 @@ class FMRefinerBase {
   FMRefinerBase(FMRefinerBase&&) = delete;
   FMRefinerBase& operator= (FMRefinerBase&&) = delete;
 
-  bool hypernodeIsConnectedToPart(const HypernodeID pin, const PartitionID part) const noexcept {
+  bool hypernodeIsConnectedToPart(const HypernodeID pin, const PartitionID part) noexcept {
+    _queries++;
+    if(_connectedToPartCache[pin]) {
+      _cache_hits++;
+      LOG(_cache_hits << " of " << _queries << " => " 
+	  << ((static_cast<double>(_cache_hits)/static_cast<double>(_queries))*100.0) 
+	  << "%");
+      return _connectedToPartCache[pin] == 2;
+    }
+    
     for (const HyperedgeID he : _hg.incidentEdges(pin)) {
-      if (_hg.pinCountInPart(he, part) > 0) {
-        return true;
+      if (_hg.pinCountInPart(he, part)) {
+	_connectedToPartCache.setState(pin,2);
+	return true;
       }
     }
+    _connectedToPartCache.setState(pin,1);
     return false;
   }
 
@@ -61,6 +78,7 @@ class FMRefinerBase {
     ASSERT(_hg.isBorderNode(hn), "Hypernode " << hn << " is not a border node!");
     DBG(dbg_refinement_kway_fm_move, "moving HN" << hn << " from " << from_part
         << " to " << to_part << " (weight=" << _hg.nodeWeight(hn) << ")");
+    _connectedToPartCache.reset();
     _hg.changeNodePart(hn, from_part, to_part);
   }
 
@@ -91,6 +109,8 @@ class FMRefinerBase {
 
   Hypergraph& _hg;
   const Configuration& _config;
+  StateVector<std::int32_t, 2> _connectedToPartCache;
+  long long _queries, _cache_hits;
 };
 }  // namespace partition
 #endif  // SRC_PARTITION_REFINEMENT_FMREFINERBASE_H_
