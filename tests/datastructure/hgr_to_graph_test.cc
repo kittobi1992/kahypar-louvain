@@ -19,6 +19,8 @@ namespace kahypar {
 #define INVALID -1
     
 using NodeID = HypernodeID;
+using EdgeWeight = long double;
+using ClusterID = PartitionID;
     
 class AHgrToGraphTest : public Test {
 public:
@@ -82,6 +84,35 @@ TEST_F(AHgrToGraphTest, ChecksIfClusterIDsAreInitializedCorrectly) {
         ASSERT_EQ(id,graph->clusterID(id));
     }
 }
+
+TEST_F(AHgrToGraphTest, ChecksIfIncidentClustersAndWeightsAreDeterminedCorrect) {
+    NodeID node = 8;
+    std::vector<EdgeWeight> cluster_weight = {0.25L,0.25L,0.0L,0.25L,0.25L,0.0L,0.0L,0.0L,0.0L,0.0L,0.0L};
+    std::vector<bool> incident_cluster = {true,true,false,true,true,false,false,false,true,false,false};
+    auto it = graph->incidentClusterWeight(node);
+    for(auto cur = it.first; cur != it.second; ++cur) {
+        ClusterID c_id = cur->first;
+        EdgeWeight weight = cur->second;
+        ASSERT_TRUE(incident_cluster[c_id]);
+        ASSERT_EQ(cluster_weight[c_id],weight);
+    }
+}
+
+TEST_F(AHgrToGraphTest, ChecksIfIncidentClustersAndWeightsAreDeterminedCorrect2) {
+    NodeID node = 8;
+    graph->setClusterID(1,0);
+    graph->setClusterID(3,0);
+    std::vector<EdgeWeight> cluster_weight = {0.75L,0.0L,0.0L,0.0L,0.25L,0.0L,0.0L,0.0L,0.0L,0.0L,0.0L};
+    std::vector<bool> incident_cluster = {true,false,false,false,true,false,false,false,true,false,false};
+    auto it = graph->incidentClusterWeight(node);
+    for(auto cur = it.first; cur != it.second; ++cur) {
+        ClusterID c_id = cur->first;
+        EdgeWeight weight = cur->second;
+        ASSERT_TRUE(incident_cluster[c_id]);
+        ASSERT_EQ(cluster_weight[c_id],weight);
+    }
+}
+
 
 
 }
