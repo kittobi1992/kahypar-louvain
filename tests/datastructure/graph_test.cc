@@ -8,14 +8,15 @@
 #include "gmock/gmock.h"
 
 #include "kahypar/definitions.h"
-#include "kahypar/datastructure/hgr_to_graph.h"
+#include "kahypar/datastructure/graph.h"
 
 using::testing::Eq;
 using::testing::Test;
 
 
 namespace kahypar {
-
+namespace ds {
+    
 #define INVALID -1
 #define EPS 1e-5
     
@@ -25,19 +26,19 @@ using ClusterID = PartitionID;
 using ds::Edge;
 using ds::IncidentClusterWeight;
     
-class AHgrToGraphTest : public Test {
+class AGraph : public Test {
 public:
-    AHgrToGraphTest() : graph(nullptr),
+    AGraph() : graph(nullptr),
                         hypergraph(7, 4, HyperedgeIndexVector { 0, 2, 6, 9, 12 },
                                    HyperedgeVector { 0, 2, 0, 1, 3, 4, 3, 4, 6, 2, 5, 6 }) { 
-        graph = std::make_shared<ds::HgrToGraph>(hypergraph);
+        graph = std::make_shared<ds::Graph>(hypergraph);
     }
                    
-    std::shared_ptr<ds::HgrToGraph> graph;
+    std::shared_ptr<ds::Graph> graph;
     Hypergraph hypergraph;
 };
 
-bool bicoloring(NodeID cur, int cur_col, std::vector<int>& col, std::shared_ptr<ds::HgrToGraph>& graph) {
+bool bicoloring(NodeID cur, int cur_col, std::vector<int>& col, std::shared_ptr<ds::Graph>& graph) {
     col[cur] = cur_col;
     for(Edge e : graph->adjacentNodes(cur)) {
         NodeID id = e.targetNode;
@@ -48,7 +49,7 @@ bool bicoloring(NodeID cur, int cur_col, std::vector<int>& col, std::shared_ptr<
 }
 
 
-TEST_F(AHgrToGraphTest, ChecksIfGraphIsBipartite) {
+TEST_F(AGraph, ContructedFromAHypergraphIsBipartite) {
     bool isBipartite = true;
     std::vector<int> col(graph->numNodes(),INVALID);
     for(NodeID id : graph->nodes()) {
@@ -58,7 +59,7 @@ TEST_F(AHgrToGraphTest, ChecksIfGraphIsBipartite) {
 }
 
 
-TEST_F(AHgrToGraphTest, ChecksCorrectConstruction) {
+TEST_F(AGraph, ContructedFromAHypergraphIsEquivalentToHypergraph) {
     HypernodeID numNodes = hypergraph.initialNumNodes();
     for(HypernodeID hn : hypergraph.nodes()) {
         std::set<NodeID> edges;
@@ -85,17 +86,17 @@ TEST_F(AHgrToGraphTest, ChecksCorrectConstruction) {
     }
 }
 
-TEST_F(AHgrToGraphTest, ChecksIfClusterIDsAreInitializedCorrectly) {
+TEST_F(AGraph, HasCorrectInitializedClusterIDs) {
     for(NodeID id : graph->nodes()) {
         ASSERT_EQ(id,graph->clusterID(id));
     }
 }
 
-TEST_F(AHgrToGraphTest, ChecksIfIncidentClusterWeightsIsDeterminedCorrect) {
+TEST_F(AGraph, DeterminesIncidentClusterWeightsCorrect) {
     NodeID node = 8;
     std::vector<EdgeWeight> cluster_weight = {0.25L,0.25L,0.0L,0.25L,0.25L,0.0L,0.0L,0.0L,0.0L,0.0L,0.0L};
     std::vector<bool> incident_cluster = {true,true,false,true,true,false,false,false,true,false,false};
-    for(IncidentClusterWeight incidentClusterWeight : graph->incidentClusterWeight(node)) {
+    for(IncidentClusterWeight incidentClusterWeight : graph->incidentClusterWeightOfNode(node)) {
         ClusterID c_id = incidentClusterWeight.clusterID;
         EdgeWeight weight = incidentClusterWeight.weight;
         ASSERT_TRUE(incident_cluster[c_id]);
@@ -103,13 +104,13 @@ TEST_F(AHgrToGraphTest, ChecksIfIncidentClusterWeightsIsDeterminedCorrect) {
     }
 }
 
-TEST_F(AHgrToGraphTest, ChecksIfIncidentClusterWeightsIsDeterminedCorrect2) {
+TEST_F(AGraph, DeterminesIncidentClusterWeightsCorrectAfterSomeNodesHasChangedTheirCluster) {
     NodeID node = 8;
     graph->setClusterID(1,0);
     graph->setClusterID(3,0);
     std::vector<EdgeWeight> cluster_weight = {0.75L,0.0L,0.0L,0.0L,0.25L,0.0L,0.0L,0.0L,0.0L,0.0L,0.0L};
     std::vector<bool> incident_cluster = {true,false,false,false,true,false,false,false,true,false,false};
-    for(IncidentClusterWeight incidentClusterWeight : graph->incidentClusterWeight(node)) {
+    for(IncidentClusterWeight incidentClusterWeight : graph->incidentClusterWeightOfNode(node)) {
         ClusterID c_id = incidentClusterWeight.clusterID;
         EdgeWeight weight = incidentClusterWeight.weight;
         ASSERT_TRUE(incident_cluster[c_id]);
@@ -117,7 +118,7 @@ TEST_F(AHgrToGraphTest, ChecksIfIncidentClusterWeightsIsDeterminedCorrect2) {
     }
 }
 
-TEST_F(AHgrToGraphTest, ChecksIfIncidentNeighborClustersAreDeterminedCorrect) {
+TEST_F(AGraph, DeterminesIncidentClusterWeightsOfAClusterCorrect) {
     graph->setClusterID(2,0);
     graph->setClusterID(7,0);
     graph->setClusterID(1,1);
@@ -128,25 +129,31 @@ TEST_F(AHgrToGraphTest, ChecksIfIncidentNeighborClustersAreDeterminedCorrect) {
     graph->setClusterID(5,2);
     graph->setClusterID(6,2);
     graph->setClusterID(10,2);
+    
+    //Checks incident clusters of cluster with ID 0
     std::vector<EdgeWeight> cluster_weight = {1.0L,0.25L,1.0L/3.0L};
     std::vector<bool> incident_cluster = {true,true,true};
-    for(auto incidentClusterWeight : graph->incidentNeighborClusters(0)) {
+    for(auto incidentClusterWeight : graph->incidentClusterWeightOfCluster(0)) {
         ClusterID c_id = incidentClusterWeight.clusterID;
         EdgeWeight weight = incidentClusterWeight.weight; 
         ASSERT_TRUE(incident_cluster[c_id]);
         ASSERT_LE(std::abs(cluster_weight[c_id]-weight),EPS);
     }
+    
+    //Checks incident clusters of cluster with ID 1
     cluster_weight = {1.0L/4.0L,0.75L+2.0L/3.0L,1.0L/3.0L};
     incident_cluster = {true,true,true};
-    for(auto incidentClusterWeight : graph->incidentNeighborClusters(1)) {
+    for(auto incidentClusterWeight : graph->incidentClusterWeightOfCluster(1)) {
         ClusterID c_id = incidentClusterWeight.clusterID;
         EdgeWeight weight = incidentClusterWeight.weight; 
         ASSERT_TRUE(incident_cluster[c_id]);
         ASSERT_LE(std::abs(cluster_weight[c_id]-weight),EPS);
     }
+    
+    //Checks incident clusters of cluster with ID 2
     cluster_weight = {1.0L/3.0L,1.0L/3.0L,2.0L/3.0L};
     incident_cluster = {true,true,true};
-    for(auto incidentClusterWeight : graph->incidentNeighborClusters(2)) {
+    for(auto incidentClusterWeight : graph->incidentClusterWeightOfCluster(2)) {
         ClusterID c_id = incidentClusterWeight.clusterID;
         EdgeWeight weight = incidentClusterWeight.weight; 
         ASSERT_TRUE(incident_cluster[c_id]);
@@ -154,7 +161,7 @@ TEST_F(AHgrToGraphTest, ChecksIfIncidentNeighborClustersAreDeterminedCorrect) {
     }
 }
 
-TEST_F(AHgrToGraphTest, ChecksIfMappingOfContractedGraphIsCorrect) {
+TEST_F(AGraph, ReturnsCorrectMappingToContractedGraph) {
     graph->setClusterID(2,0);
     graph->setClusterID(7,0);
     graph->setClusterID(1,3);
@@ -164,7 +171,7 @@ TEST_F(AHgrToGraphTest, ChecksIfMappingOfContractedGraphIsCorrect) {
     graph->setClusterID(5,6);
     graph->setClusterID(10,6);
     auto contractedGraph = graph->contractCluster();
-    ds::HgrToGraph graph = std::move(contractedGraph.first);
+    ds::Graph graph = std::move(contractedGraph.first);
     std::vector<NodeID> mappingToOriginalGraph = contractedGraph.second;
     std::vector<NodeID> correctMappingToOriginalGraph = {0,1,0,1,1,2,2,0,1,1,2};
     for(size_t i = 0; i < mappingToOriginalGraph.size(); ++i) {
@@ -172,7 +179,7 @@ TEST_F(AHgrToGraphTest, ChecksIfMappingOfContractedGraphIsCorrect) {
     }
 }
 
-TEST_F(AHgrToGraphTest, ChecksIfContractedGraphIsCorrect) {
+TEST_F(AGraph, ReturnCorrectContractedGraph) {
     graph->setClusterID(2,0);
     graph->setClusterID(7,0);
     graph->setClusterID(1,3);
@@ -182,10 +189,12 @@ TEST_F(AHgrToGraphTest, ChecksIfContractedGraphIsCorrect) {
     graph->setClusterID(5,6);
     graph->setClusterID(10,6);
     auto contractedGraph = graph->contractCluster();
-    ds::HgrToGraph graph = std::move(contractedGraph.first);
+    ds::Graph graph = std::move(contractedGraph.first);
     std::vector<NodeID> mappingToOriginalGraph = contractedGraph.second;
     
     ASSERT_EQ(3,graph.numNodes());
+    
+    //Check cluster 0
     std::vector<EdgeWeight> edge_weight = {1.0L,0.25L,1.0L/3.0L};
     std::vector<bool> incident_nodes = {true,true,true};
     for(Edge e : graph.adjacentNodes(0)) {
@@ -195,6 +204,7 @@ TEST_F(AHgrToGraphTest, ChecksIfContractedGraphIsCorrect) {
         ASSERT_LE(std::abs(edge_weight[n_id]-weight),EPS);           
     }
     
+    //Check cluster 1
     edge_weight = {1.0L/4.0L,0.75L+2.0L/3.0L,1.0L/3.0L};
     incident_nodes = {true,true,true};
     for(Edge e : graph.adjacentNodes(1)) {
@@ -204,6 +214,7 @@ TEST_F(AHgrToGraphTest, ChecksIfContractedGraphIsCorrect) {
         ASSERT_LE(std::abs(edge_weight[n_id]-weight),EPS);           
     }
     
+    //Check cluster 2
     edge_weight = {1.0L/3.0L,1.0L/3.0L,2.0L/3.0L};
     incident_nodes = {true,true,true};
     for(Edge e : graph.adjacentNodes(2)) {
@@ -217,5 +228,5 @@ TEST_F(AHgrToGraphTest, ChecksIfContractedGraphIsCorrect) {
 
 
 
-
-}
+} //namespace ds
+} //namespace kahypar
