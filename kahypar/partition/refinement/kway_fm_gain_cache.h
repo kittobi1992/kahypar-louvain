@@ -1,6 +1,22 @@
-/***************************************************************************
- *  Copyright (C) 2016 Sebastian Schlag <sebastian.schlag@kit.edu>
- **************************************************************************/
+/*******************************************************************************
+ * This file is part of KaHyPar.
+ *
+ * Copyright (C) 2016 Sebastian Schlag <sebastian.schlag@kit.edu>
+ *
+ * KaHyPar is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * KaHyPar is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ ******************************************************************************/
 
 #pragma once
 
@@ -140,7 +156,7 @@ class KwayGainCache {
       sparse(part).gain = gain;
     }
 
-    __attribute__ ((always_inline)) bool contains(const PartitionID part) const {
+    KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool contains(const PartitionID part) const {
       ASSERT(part < _k, V(part));
       ASSERT([&]() {
           const PartitionID index = sparse(part).index;
@@ -222,13 +238,13 @@ class KwayGainCache {
   KwayGainCache(KwayGainCache&&) = default;
   KwayGainCache& operator= (KwayGainCache&&) = default;
 
-  __attribute__ ((always_inline)) Gain entry(const HypernodeID hn, const PartitionID part) const {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Gain entry(const HypernodeID hn, const PartitionID part) const {
     DBG(debug && (hn == hn_to_debug), "entry access for HN " << hn << " and part " << part);
     ASSERT(part < _k, V(part));
     return cacheElement(hn)->gain(part);
   }
 
-  __attribute__ ((always_inline)) bool entryExists(const HypernodeID hn,
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE bool entryExists(const HypernodeID hn,
                                                    const PartitionID part) const {
     ASSERT(part < _k, V(part));
     DBG(debug && (hn == hn_to_debug), "existence check for HN " << hn << " and part " << part
@@ -236,7 +252,7 @@ class KwayGainCache {
     return cacheElement(hn)->contains(part);
   }
 
-  __attribute__ ((always_inline)) void removeEntryDueToConnectivityDecrease(const HypernodeID hn,
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void removeEntryDueToConnectivityDecrease(const HypernodeID hn,
                                                                             const PartitionID part) {
     ASSERT(part < _k, V(part));
     _deltas.emplace_back(hn, part, cacheElement(hn)->gain(part), RollbackAction::do_add);
@@ -246,7 +262,7 @@ class KwayGainCache {
     cacheElement(hn)->remove(part);
   }
 
-  __attribute__ ((always_inline)) void addEntryDueToConnectivityIncrease(const HypernodeID hn,
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void addEntryDueToConnectivityIncrease(const HypernodeID hn,
                                                                          const PartitionID part,
                                                                          const Gain gain) {
     ASSERT(part < _k, V(part));
@@ -258,7 +274,7 @@ class KwayGainCache {
     _deltas.emplace_back(hn, part, kNotCached - gain, RollbackAction::do_remove);
   }
 
-  __attribute__ ((always_inline)) void updateFromAndToPartOfMovedHN(const HypernodeID moved_hn,
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void updateFromAndToPartOfMovedHN(const HypernodeID moved_hn,
                                                                     const PartitionID from_part,
                                                                     const PartitionID to_part,
                                                                     const bool remains_connected_to_from_part) {
@@ -281,7 +297,7 @@ class KwayGainCache {
   }
 
 
-  __attribute__ ((always_inline)) void clear(const HypernodeID hn) {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void clear(const HypernodeID hn) {
     DBG(debug && (hn == hn_to_debug), "clear(" << hn << ")");
     cacheElement(hn)->clear();
   }
@@ -293,7 +309,7 @@ class KwayGainCache {
     cacheElement(hn)->add(part, value);
   }
 
-  __attribute__ ((always_inline)) void updateEntryIfItExists(const HypernodeID hn,
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void updateEntryIfItExists(const HypernodeID hn,
                                                              const PartitionID part,
                                                              const Gain delta) {
     ASSERT(part < _k, V(part));
@@ -302,7 +318,7 @@ class KwayGainCache {
     }
   }
 
-  __attribute__ ((always_inline)) void updateExistingEntry(const HypernodeID hn,
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void updateExistingEntry(const HypernodeID hn,
                                                            const PartitionID part,
                                                            const Gain delta) {
     ASSERT(part < _k, V(part));

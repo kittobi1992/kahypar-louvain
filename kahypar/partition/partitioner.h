@@ -1,6 +1,22 @@
-/***************************************************************************
- *  Copyright (C) 2014-2016 Sebastian Schlag <sebastian.schlag@kit.edu>
- **************************************************************************/
+/*******************************************************************************
+ * This file is part of KaHyPar.
+ *
+ * Copyright (C) 2014-2016 Sebastian Schlag <sebastian.schlag@kit.edu>
+ *
+ * KaHyPar is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * KaHyPar is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ ******************************************************************************/
 
 #pragma once
 
@@ -435,7 +451,7 @@ inline double Partitioner::calculateRelaxedEpsilon(const HypernodeWeight origina
   double base = ceil(static_cast<double>(original_hypergraph_weight) / original_config.partition.k)
                 / ceil(static_cast<double>(current_hypergraph_weight) / k)
                 * (1.0 + original_config.partition.epsilon);
-  return std::pow(base, 1.0 / ceil(log2(static_cast<double>(k)))) - 1.0;
+  return std::min(std::pow(base, 1.0 / ceil(log2(static_cast<double>(k)))) - 1.0, 0.99);
 }
 
 void Partitioner::initialPartitioningViaExternalTools(Hypergraph& hg, const Configuration& config) {
@@ -611,14 +627,17 @@ inline void Partitioner::initialPartitioningViaKaHyPar(Hypergraph& hg,
   }
 }
 
-inline Configuration Partitioner::createConfigurationForCurrentBisection(const Configuration& original_config, const Hypergraph& original_hypergraph,
-                                                                         const Hypergraph& current_hypergraph, const PartitionID current_k,
-                                                                         const PartitionID k0, const PartitionID k1) const {
+inline Configuration Partitioner::createConfigurationForCurrentBisection(const Configuration& original_config,
+                                                                         const Hypergraph& original_hypergraph,
+                                                                         const Hypergraph& current_hypergraph,
+                                                                         const PartitionID current_k,
+                                                                         const PartitionID k0,
+                                                                         const PartitionID k1) const {
   Configuration current_config(original_config);
   current_config.partition.k = 2;
-  current_config.partition.epsilon = calculateRelaxedEpsilon(
-    original_hypergraph.totalWeight(), current_hypergraph.totalWeight(),
-    current_k, original_config);
+  current_config.partition.epsilon = calculateRelaxedEpsilon(original_hypergraph.totalWeight(),
+                                                             current_hypergraph.totalWeight(),
+                                                             current_k, original_config);
   ASSERT(current_config.partition.epsilon > 0.0, "start partition already too imbalanced");
   if (current_config.partition.verbose_output) {
     LOG(V(current_config.partition.epsilon));

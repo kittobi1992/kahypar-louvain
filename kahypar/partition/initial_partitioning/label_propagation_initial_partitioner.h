@@ -1,7 +1,23 @@
-/***************************************************************************
- *  Copyright (C) 2015 Tobias Heuer <tobias.heuer@gmx.net>
- *  Copyright (C) 2016 Sebastian Schlag <sebastian.schlag@kit.edu>
- **************************************************************************/
+/*******************************************************************************
+ * This file is part of KaHyPar.
+ *
+ * Copyright (C) 2015 Tobias Heuer <tobias.heuer@gmx.net>
+ * Copyright (C) 2016 Sebastian Schlag <sebastian.schlag@kit.edu>
+ *
+ * KaHyPar is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * KaHyPar is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ *
+******************************************************************************/
 
 #pragma once
 
@@ -322,7 +338,8 @@ class LabelPropagationInitialPartitioner : public IInitialPartitioner,
         } (), "Calculated gain is invalid");
 
       if (_hg.partWeight(target_part.key) + hn_weight
-          <= _config.initial_partitioning.upper_allowed_partition_weight[target_part.key]) {
+          <= _config.initial_partitioning.upper_allowed_partition_weight[target_part.key] &&
+          _hg.partSize(source_part) - 1 > 0) {
         if (target_part.value > max_score) {
           max_score = target_part.value;
           max_part = target_part.key;
@@ -409,7 +426,7 @@ class LabelPropagationInitialPartitioner : public IInitialPartitioner,
   using InitialPartitionerBase::kInvalidNode;
   using InitialPartitionerBase::kInvalidPart;
   ds::FastResetFlagArray<> _in_queue;
-  ds::InsertOnlySparseMap<PartitionID, Gain> _tmp_scores;
+  ds::SparseMap<PartitionID, Gain> _tmp_scores;
   std::vector<HypernodeID> _unassigned_nodes;
   std::vector<HypernodeID> _unconnected_nodes;
   unsigned int _unassigned_node_bound;

@@ -1,7 +1,22 @@
-/***************************************************************************
- *  Copyright (C) 2016 Sebastian Schlag <sebastian.schlag@kit.edu>
- **************************************************************************/
-
+/*******************************************************************************
+ * This file is part of KaHyPar.
+ *
+ * Copyright (C) 2016 Sebastian Schlag <sebastian.schlag@kit.edu>
+ *
+ * KaHyPar is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * KaHyPar is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ *
+******************************************************************************/
 /*
  * Sparse map based on sparse set representation of
  * Briggs, Preston, and Linda Torczon. "An efficient representation for sparse sets."
@@ -104,14 +119,10 @@ class SparseMapBase {
                                           max_size * sizeof(size_t)));
 
     _sparse = reinterpret_cast<size_t*>(raw);
-    for (size_t i = 0; i < max_size; ++i) {
-      new(_sparse + i)Value(std::numeric_limits<Value>::max());
-    }
-
     _dense = reinterpret_cast<MapElement*>(_sparse + max_size);
     for (size_t i = 0; i < max_size; ++i) {
-      new(_dense + i)MapElement(std::numeric_limits<Key>::max(),
-                                initial_value);
+      _sparse[i] = std::numeric_limits<size_t>::max();
+      _dense[i] = MapElement(std::numeric_limits<Key>::max(), initial_value);
     }
   }
 
@@ -180,53 +191,6 @@ class SparseMap final : public SparseMapBase<Key, Value, SparseMap<Key, Value> >
     _size = 0;
   }
 
-  using Base::_sparse;
-  using Base::_dense;
-  using Base::_size;
-};
-
-template <typename Key = Mandatory,
-          typename Value = Mandatory>
-class InsertOnlySparseMap final : public SparseMapBase<Key, Value, SparseMap<Key, Value> >{
-  using Base = SparseMapBase<Key, Value, SparseMap<Key, Value> >;
-  friend Base;
-
- public:
-  explicit InsertOnlySparseMap(const Key max_size,
-                               const Value initial_value = 0) :
-    Base(max_size, initial_value),
-    _threshold(0) { }
-
-  InsertOnlySparseMap(const InsertOnlySparseMap&) = delete;
-  InsertOnlySparseMap& operator= (const InsertOnlySparseMap&) = delete;
-
-  InsertOnlySparseMap(InsertOnlySparseMap&& other) :
-    Base(std::move(other)) { }
-  InsertOnlySparseMap& operator= (InsertOnlySparseMap&&) = delete;
-
- private:
-  bool containsImpl(const Key key) const {
-    return _sparse[key] == _threshold;
-  }
-
-  void addImpl(const Key key, const Value value) {
-    if (!contains(key)) {
-      _dense[_size] = { key, value };
-      _sparse[key] = _size++;
-    }
-  }
-
-  void clearImpl() {
-    _size = 0;
-    if (_threshold == std::numeric_limits<Value>::max()) {
-      for (size_t i = 0; i < _dense - _sparse; ++i) {
-        _sparse[i] = std::numeric_limits<Value>::max();
-      }
-      _threshold = 0;
-    }
-  }
-
-  size_t _threshold;
   using Base::_sparse;
   using Base::_dense;
   using Base::_size;

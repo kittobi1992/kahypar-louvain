@@ -1,6 +1,22 @@
-/***************************************************************************
- *  Copyright (C) 2014 Sebastian Schlag <sebastian.schlag@kit.edu>
- **************************************************************************/
+/*******************************************************************************
+ * This file is part of KaHyPar.
+ *
+ * Copyright (C) 2014 Sebastian Schlag <sebastian.schlag@kit.edu>
+ *
+ * KaHyPar is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * KaHyPar is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ ******************************************************************************/
 
 #pragma once
 
@@ -41,6 +57,7 @@ class MaxGainNodeKWayFMRefiner final : public IRefiner,
   static const bool dbg_refinement_kway_fm_gain_comp = false;
 
   using GainPartitionPair = std::pair<Gain, PartitionID>;
+  using Base = FMRefinerBase<RollbackInfo>;
 
   struct GainConnectivity {
     Gain gain;
@@ -581,9 +598,9 @@ class MaxGainNodeKWayFMRefiner final : public IRefiner,
     return GainPartitionPair(max_gain, max_gain_part);
   }
 
-  using FMRefinerBase::_hg;
-  using FMRefinerBase::_config;
-  using FMRefinerBase::_performed_moves;
+  using Base::_hg;
+  using Base::_config;
+  using Base::_performed_moves;
 
   std::vector<GainConnectivity> _tmp_gains;
   std::vector<PartitionID> _target_parts;

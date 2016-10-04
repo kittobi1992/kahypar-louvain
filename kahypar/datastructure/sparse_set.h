@@ -1,7 +1,22 @@
-/***************************************************************************
- *  Copyright (C) 2016 Sebastian Schlag <sebastian.schlag@kit.edu>
- **************************************************************************/
-
+/*******************************************************************************
+ * This file is part of KaHyPar.
+ *
+ * Copyright (C) 2016 Sebastian Schlag <sebastian.schlag@kit.edu>
+ *
+ * KaHyPar is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * KaHyPar is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ *
+******************************************************************************/
 /*
  * Sparse set representation based on
  * Briggs, Preston, and Linda Torczon. "An efficient representation for sparse sets."
@@ -59,13 +74,14 @@ class SparseSetBase {
     _dense(nullptr) {
     ValueType* raw = static_cast<ValueType*>(malloc(((2 * k)) * sizeof(ValueType)));
     for (ValueType i = 0; i < 2 * k; ++i) {
-      new(raw + i)ValueType(std::numeric_limits<ValueType>::max());
+      raw[i] = std::numeric_limits<ValueType>::max();
     }
     _sparse = raw;
     _dense = raw + k;
   }
 
   ~SparseSetBase() {
+    static_assert(std::is_pod<ValueType>::value, "ValueType should be POD");
     free(_sparse);
   }
 
@@ -132,8 +148,9 @@ class SparseSet final : public SparseSetBase<ValueType, SparseSet<ValueType> >{
 };
 
 template <typename ValueType = Mandatory>
-class InsertOnlySparseSet final : public SparseSetBase<ValueType, SparseSet<ValueType> >{
-  using Base = SparseSetBase<ValueType, SparseSet<ValueType> >;
+class InsertOnlySparseSet final : public SparseSetBase<ValueType,
+                                                       InsertOnlySparseSet<ValueType> >{
+  using Base = SparseSetBase<ValueType, InsertOnlySparseSet<ValueType> >;
   friend Base;
 
  public:
@@ -152,12 +169,14 @@ class InsertOnlySparseSet final : public SparseSetBase<ValueType, SparseSet<Valu
   InsertOnlySparseSet& operator= (const InsertOnlySparseSet&) = delete;
 
  private:
+  FRIEND_TEST(AnInsertOnlySparseSet, HandlesThresholdOverflow);
+
   bool containsImpl(const ValueType value) const {
     return _sparse[value] == _threshold;
   }
 
   void addImpl(const ValueType value) {
-    if (!contains(value)) {
+    if (!containsImpl(value)) {
       _sparse[value] = _threshold;
       _dense[_size++] = value;
     }
@@ -165,13 +184,13 @@ class InsertOnlySparseSet final : public SparseSetBase<ValueType, SparseSet<Valu
 
   void clearImpl() {
     _size = 0;
+    ++_threshold;
     if (_threshold == std::numeric_limits<ValueType>::max()) {
       for (ValueType i = 0; i < _dense - _sparse; ++i) {
-        _sparse[i] = 0;
+        _sparse[i] = std::numeric_limits<ValueType>::max();
       }
       _threshold = 0;
     }
-    ++_threshold;
   }
 
   ValueType _threshold;

@@ -1,7 +1,23 @@
-/***************************************************************************
- *  Copyright (C) 2016 Sebastian Schlag <sebastian.schlag@kit.edu>
- *  Copyright (C) 2016 Tobias Heuer <tobias.heuer@gmx.net>
- **************************************************************************/
+/*******************************************************************************
+ * This file is part of KaHyPar.
+ *
+ * Copyright (C) 2016 Tobias Heuer <tobias.heuer@gmx.net>
+ * Copyright (C) 2016 Sebastian Schlag <sebastian.schlag@kit.edu>
+ *
+ * KaHyPar is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * KaHyPar is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ *
+******************************************************************************/
 
 #pragma once
 
@@ -46,6 +62,7 @@ class KWayKMinusOneRefiner final : public IRefiner,
 
 
   using GainCache = KwayGainCache<Gain>;
+  using Base = FMRefinerBase<RollbackInfo>;
 
 
   struct PinState {
@@ -176,8 +193,7 @@ class KWayKMinusOneRefiner final : public IRefiner,
       _hg.mark(max_gain_node);
       ++touched_hns_since_last_improvement;
 
-      if (_hg.partWeight(to_part) + _hg.nodeWeight(max_gain_node)
-          <= _config.partition.max_part_weights[0]) {
+      if (moveIsFeasible(max_gain_node, from_part, to_part)) {
         // LOG("performed MOVE: " << V(max_gain_node) << V(from_part) << V(to_part));
         moveHypernode(max_gain_node, from_part, to_part);
 
@@ -305,7 +321,7 @@ class KWayKMinusOneRefiner final : public IRefiner,
     }
   }
 
-  __attribute__ ((always_inline)) void deltaGainUpdatesForCacheOnly(const HypernodeID pin,
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void deltaGainUpdatesForCacheOnly(const HypernodeID pin,
                                                                     const PartitionID from_part,
                                                                     const PartitionID to_part,
                                                                     const HyperedgeID he,
@@ -315,7 +331,7 @@ class KWayKMinusOneRefiner final : public IRefiner,
   }
 
 
-  __attribute__ ((always_inline)) void deltaGainUpdatesForPQandCache(const HypernodeID pin,
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void deltaGainUpdatesForPQandCache(const HypernodeID pin,
                                                                      const PartitionID from_part,
                                                                      const PartitionID to_part,
                                                                      const HyperedgeID he,
@@ -326,7 +342,7 @@ class KWayKMinusOneRefiner final : public IRefiner,
 
 
   template <bool update_pq = false>
-  __attribute__ ((always_inline)) void deltaGainUpdates(const HypernodeID pin,
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void deltaGainUpdates(const HypernodeID pin,
                                                         const PartitionID from_part,
                                                         const PartitionID to_part,
                                                         const HyperedgeID he,
@@ -376,7 +392,7 @@ class KWayKMinusOneRefiner final : public IRefiner,
   void connectivityUpdateForCache(const HypernodeID pin, const PartitionID from_part,
                                   const PartitionID to_part, const HyperedgeID he,
                                   const bool move_decreased_connectivity,
-                                  const bool move_increased_connectivity) __attribute__ ((always_inline)) {
+                                  const bool move_increased_connectivity) KAHYPAR_ATTRIBUTE_ALWAYS_INLINE {
     ONLYDEBUG(he);
     if (move_decreased_connectivity && _gain_cache.entryExists(pin, from_part) &&
         !hypernodeIsConnectedToPart(pin, from_part)) {
@@ -398,7 +414,7 @@ class KWayKMinusOneRefiner final : public IRefiner,
   void connectivityUpdate(const HypernodeID pin, const PartitionID from_part,
                           const PartitionID to_part, const HyperedgeID he,
                           const bool move_decreased_connectivity,
-                          const bool move_increased_connectivity) __attribute__ ((always_inline)) {
+                          const bool move_increased_connectivity) KAHYPAR_ATTRIBUTE_ALWAYS_INLINE {
     ONLYDEBUG(he);
     if (move_decreased_connectivity && _gain_cache.entryExists(pin, from_part) &&
         !hypernodeIsConnectedToPart(pin, from_part)) {
@@ -817,7 +833,7 @@ class KWayKMinusOneRefiner final : public IRefiner,
       } (), V(moved_hn));
   }
 
-  __attribute__ ((always_inline)) void updatePin(const HypernodeID pin, const PartitionID part,
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void updatePin(const HypernodeID pin, const PartitionID part,
                                                  const HyperedgeID he, const Gain delta) {
     ONLYDEBUG(he);
     ASSERT(_gain_cache.entryExists(pin, part), V(pin) << V(part));
@@ -917,7 +933,7 @@ class KWayKMinusOneRefiner final : public IRefiner,
   }
 
 
-  __attribute__ ((always_inline)) void insertHNintoPQ(const HypernodeID hn) {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void insertHNintoPQ(const HypernodeID hn) {
     ASSERT(_hg.isBorderNode(hn));
 
     for (const PartitionID part : _gain_cache.adjacentParts(hn)) {
@@ -975,13 +991,13 @@ class KWayKMinusOneRefiner final : public IRefiner,
     }
   }
 
-  using FMRefinerBase::_hg;
-  using FMRefinerBase::_config;
-  using FMRefinerBase::_pq;
-  using FMRefinerBase::_performed_moves;
-  using FMRefinerBase::_hns_to_activate;
+  using Base::_hg;
+  using Base::_config;
+  using Base::_pq;
+  using Base::_performed_moves;
+  using Base::_hns_to_activate;
 
-  ds::InsertOnlySparseMap<PartitionID, Gain> _tmp_gains;
+  ds::SparseMap<PartitionID, Gain> _tmp_gains;
 
   // After a move, we have to update the gains for all adjacent HNs.
   // For all moves of a HN that were already present in the PQ before the

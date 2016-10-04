@@ -1,6 +1,22 @@
-/***************************************************************************
- *  Copyright (C) 2014-2016 Sebastian Schlag <sebastian.schlag@kit.edu>
- **************************************************************************/
+/*******************************************************************************
+ * This file is part of KaHyPar.
+ *
+ * Copyright (C) 2014-2016 Sebastian Schlag <sebastian.schlag@kit.edu>
+ *
+ * KaHyPar is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * KaHyPar is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ ******************************************************************************/
 
 #pragma once
 
@@ -46,6 +62,7 @@ class TwoWayFMRefiner final : public IRefiner,
  private:
   using RebalancePQ = ds::BinaryMaxHeap<HypernodeID, Gain>;
   using HypernodeWeightArray = std::array<HypernodeWeight, 2>;
+  using Base = FMRefinerBase<HypernodeID>;
 
  public:
   TwoWayFMRefiner(Hypergraph& hypergraph, const Configuration& config) :
@@ -317,8 +334,11 @@ class TwoWayFMRefiner final : public IRefiner,
                                                 <= _config.partition.max_part_weights[1]);
       const bool improved_balance_less_equal_cut = (current_imbalance < best_metrics.imbalance) &&
                                                    (current_cut <= best_metrics.cut);
+      const bool move_is_feasible = (_hg.partSize(from_part) > 0) &&
+                                    (improved_cut_within_balance ||
+                                     improved_balance_less_equal_cut);
       ++touched_hns_since_last_improvement;
-      if (improved_cut_within_balance || improved_balance_less_equal_cut) {
+      if (move_is_feasible) {
         DBG(dbg_refinement_2way_fm_improvements_balance && max_gain == 0,
             "2WayFM improved balance between " << from_part << " and " << to_part
             << "(max_gain=" << max_gain << ")");
@@ -699,7 +719,7 @@ class TwoWayFMRefiner final : public IRefiner,
             _pq.isEnabled(1) : !_pq.isEnabled(1)), V(1));
   }
 
-  void updateGainCache(const HypernodeID pin, const Gain gain_delta) __attribute__ ((always_inline)) {
+  void updateGainCache(const HypernodeID pin, const Gain gain_delta) KAHYPAR_ATTRIBUTE_ALWAYS_INLINE {
     // Only _gain_cache[moved_hn] = kNotCached, all other entries are cached.
     // However we set _gain_cache[moved_hn] to the correct value after all neighbors
     // are updated.
@@ -713,7 +733,7 @@ class TwoWayFMRefiner final : public IRefiner,
   }
 
   void performNonZeroFullUpdate(const HypernodeID pin, const Gain gain_delta,
-                                HypernodeID& num_active_pins) __attribute__ ((always_inline)) {
+                                HypernodeID& num_active_pins) KAHYPAR_ATTRIBUTE_ALWAYS_INLINE {
     ASSERT(gain_delta != 0);
     if (!_hg.marked(pin)) {
       if (!_hg.active(pin)) {
@@ -907,7 +927,7 @@ class TwoWayFMRefiner final : public IRefiner,
 #endif
   }
 
-  void updatePin(const HypernodeID pin, const Gain gain_delta) __attribute__ ((always_inline)) {
+  void updatePin(const HypernodeID pin, const Gain gain_delta) KAHYPAR_ATTRIBUTE_ALWAYS_INLINE {
     const PartitionID target_part = 1 - _hg.partID(pin);
     ASSERT(_hg.active(pin), V(pin) << V(target_part));
     ASSERT(_pq.contains(pin, target_part), V(pin) << V(target_part));
@@ -969,11 +989,11 @@ class TwoWayFMRefiner final : public IRefiner,
       } (), "GainCache Invalid");
   }
 
-  using FMRefinerBase::_hg;
-  using FMRefinerBase::_config;
-  using FMRefinerBase::_pq;
-  using FMRefinerBase::_performed_moves;
-  using FMRefinerBase::_hns_to_activate;
+  using Base::_hg;
+  using Base::_config;
+  using Base::_pq;
+  using Base::_performed_moves;
+  using Base::_hns_to_activate;
 
   std::array<RebalancePQ, 2> _rebalance_pqs;
   ds::FastResetFlagArray<> _he_fully_active;

@@ -1,6 +1,22 @@
-/***************************************************************************
- *  Copyright (C) 2014-2016 Sebastian Schlag <sebastian.schlag@kit.edu>
- **************************************************************************/
+/*******************************************************************************
+ * This file is part of KaHyPar.
+ *
+ * Copyright (C) 2014-2016 Sebastian Schlag <sebastian.schlag@kit.edu>
+ *
+ * KaHyPar is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * KaHyPar is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ ******************************************************************************/
 
 #pragma once
 
@@ -1335,6 +1351,10 @@ class GenericHypergraph {
     }
   }
 
+  void setType(const Type type) {
+    _type = type;
+  }
+
   std::string typeAsString() const {
     return typeToString(type());
   }
@@ -1835,7 +1855,7 @@ class GenericHypergraph {
    * GenericHypergraph::removeIncidentEdgeFromHypernode.
    */
   template <typename Handle1, typename Element>
-  __attribute__ ((always_inline)) void removeIncidence(const Handle1 to_remove, Element& element) {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void removeIncidence(const Handle1 to_remove, Element& element) {
     using std::swap;
     ASSERT(!element.isDisabled());
 
@@ -1850,12 +1870,12 @@ class GenericHypergraph {
     element.decrementSize();
   }
 
-  __attribute__ ((always_inline)) void removePinFromHyperedge(const HypernodeID pin,
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void removePinFromHyperedge(const HypernodeID pin,
                                                               const HyperedgeID he) {
     removeIncidence(pin, _hyperedges[he]);
   }
 
-  __attribute__ ((always_inline)) void removeIncidentEdgeFromHypernode(const HyperedgeID he,
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE void removeIncidentEdgeFromHypernode(const HyperedgeID he,
                                                                        const HypernodeID hn) {
     removeIncidence(he, _hypernodes[hn]);
   }

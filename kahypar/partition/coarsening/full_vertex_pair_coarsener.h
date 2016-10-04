@@ -1,6 +1,22 @@
-/***************************************************************************
- *  Copyright (C) 2014-2016 Sebastian Schlag <sebastian.schlag@kit.edu>
- **************************************************************************/
+/*******************************************************************************
+ * This file is part of KaHyPar.
+ *
+ * Copyright (C) 2014-2016 Sebastian Schlag <sebastian.schlag@kit.edu>
+ *
+ * KaHyPar is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * KaHyPar is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ ******************************************************************************/
 
 #pragma once
 
@@ -65,13 +81,11 @@ class FullVertexPairCoarsener final : public ICoarsener,
 
 
       ASSERT(_hg.nodeWeight(rep_node) + _hg.nodeWeight(_target[rep_node])
-             <= _rater.thresholdNodeWeight(),
-             "Trying to contract nodes violating maximum node weight");
+             <= _rater.thresholdNodeWeight());
       ASSERT(_pq.topKey() == _rater.rate(rep_node).value,
-             "Key in PQ != rating calculated by rater:" << _pq.topKey() << "!="
-             << _rater.rate(rep_node).value);
-      ASSERT(!invalid_hypernodes[rep_node], "Representative HN " << rep_node << " is invalid");
-      ASSERT(!invalid_hypernodes[contracted_node], "Contract HN " << contracted_node << " is invalid");
+             V(_pq.topKey()) << V(_rater.rate(rep_node).value));
+      ASSERT(!invalid_hypernodes[rep_node], V(rep_node));
+      ASSERT(!invalid_hypernodes[contracted_node], V(contracted_node));
 
       performContraction(rep_node, contracted_node);
 
@@ -115,10 +129,9 @@ class FullVertexPairCoarsener final : public ICoarsener,
   void updatePQandContractionTarget(const HypernodeID hn, const Rating& rating,
                                     ds::FastResetFlagArray<>& invalid_hypernodes) {
     if (rating.valid) {
-      ASSERT(_pq.contains(hn),
-             "Trying to update rating of HN " << hn << " which is not in PQ");
-      DBG(false, "Updating prio of HN " << hn << ": " << _pq.getKey(hn) << " (target=" << _target[hn]
-          << ") --- >" << rating.value << "(target" << rating.target << ")");
+      ASSERT(_pq.contains(hn), V(hn));
+      DBG(false, "Updating prio of HN " << hn << ": " << _pq.getKey(hn) << " (target="
+          << _target[hn] << ") --- >" << rating.value << "(target" << rating.target << ")");
       _pq.updateKey(hn, rating.value);
       _target[hn] = rating.target;
     } else if (_pq.contains(hn)) {

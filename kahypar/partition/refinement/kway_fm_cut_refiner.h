@@ -1,6 +1,22 @@
-/***************************************************************************
- *  Copyright (C) 2014 Sebastian Schlag <sebastian.schlag@kit.edu>
- **************************************************************************/
+/*******************************************************************************
+ * This file is part of KaHyPar.
+ *
+ * Copyright (C) 2014 Sebastian Schlag <sebastian.schlag@kit.edu>
+ *
+ * KaHyPar is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * KaHyPar is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ ******************************************************************************/
 
 #pragma once
 
@@ -44,6 +60,7 @@ class KWayFMRefiner final : public IRefiner,
   static const bool dbg_refinement_kway_gain_caching = false;
   static const HypernodeID hn_to_debug = 4242;
   using GainCache = KwayGainCache<Gain>;
+  using Base = FMRefinerBase<RollbackInfo>;
 
  public:
   KWayFMRefiner(Hypergraph& hypergraph, const Configuration& config) :
@@ -172,8 +189,7 @@ class KWayFMRefiner final : public IRefiner,
       _hg.mark(max_gain_node);
       ++touched_hns_since_last_improvement;
 
-      if (_hg.partWeight(to_part) + _hg.nodeWeight(max_gain_node)
-          <= _config.partition.max_part_weights[0]) {
+      if (moveIsFeasible(max_gain_node, from_part, to_part)) {
         moveHypernode(max_gain_node, from_part, to_part);
 
         if (_hg.partWeight(to_part) >= _config.partition.max_part_weights[0]) {
@@ -299,7 +315,7 @@ class KWayFMRefiner final : public IRefiner,
                                     const HypernodeID he_size, const HyperedgeWeight he_weight,
                                     const HypernodeID pin_count_source_part_before_move,
                                     const HypernodeID pin_count_target_part_after_move)
-  __attribute__ ((always_inline)) {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE {
     deltaGainUpdates<true>(pin, from_part, to_part, he, he_size,
                            he_weight, pin_count_source_part_before_move,
                            pin_count_target_part_after_move);
@@ -311,14 +327,14 @@ class KWayFMRefiner final : public IRefiner,
                                      const HypernodeID he_size, const HyperedgeWeight he_weight,
                                      const HypernodeID pin_count_source_part_before_move,
                                      const HypernodeID pin_count_target_part_after_move)
-  __attribute__ ((always_inline)) {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE {
     deltaGainUpdates<false>(pin, from_part, to_part, he, he_size,
                             he_weight, pin_count_source_part_before_move,
                             pin_count_target_part_after_move);
   }
 
   template <bool update_cache_only = false>
-  __attribute__ ((always_inline))
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void deltaGainUpdates(const HypernodeID pin, const PartitionID from_part,
                         const PartitionID to_part, const HyperedgeID he, const HypernodeID he_size,
                         const HyperedgeWeight he_weight,
@@ -391,7 +407,7 @@ class KWayFMRefiner final : public IRefiner,
                           const PartitionID to_part, const HyperedgeID he,
                           const bool move_decreased_connectivity,
                           const bool move_increased_connectivity)
-  __attribute__ ((always_inline)) {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE {
     ONLYDEBUG(he);
     if (move_decreased_connectivity && _gain_cache.entryExists(pin, from_part) &&
         !hypernodeIsConnectedToPart(pin, from_part)) {
@@ -433,7 +449,7 @@ class KWayFMRefiner final : public IRefiner,
                                   const PartitionID to_part, const HyperedgeID he,
                                   const bool move_decreased_connectivity,
                                   const bool move_increased_connectivity)
-  __attribute__ ((always_inline)) {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE {
     ONLYDEBUG(he);
     if (move_decreased_connectivity && _gain_cache.entryExists(pin, from_part) &&
         !hypernodeIsConnectedToPart(pin, from_part)) {
@@ -560,7 +576,7 @@ class KWayFMRefiner final : public IRefiner,
 
   void connectivityUpdate(const HypernodeID moved_hn, const PartitionID from_part,
                           const PartitionID to_part, const HyperedgeID he)
-  __attribute__ ((always_inline)) {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE {
     ONLYDEBUG(moved_hn);
     const HypernodeID he_size = _hg.edgeSize(he);
     const HyperedgeWeight he_weight = _hg.edgeWeight(he);
@@ -913,7 +929,7 @@ class KWayFMRefiner final : public IRefiner,
 
   void updatePin(const HypernodeID pin, const PartitionID part, const HyperedgeID he,
                  const Gain delta)
-  __attribute__ ((always_inline)) {
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE {
     ONLYDEBUG(he);
     if (delta != 0 && _gain_cache.entryExists(pin, part) &&
         _already_processed_part.get(pin) != part) {
@@ -1008,6 +1024,7 @@ class KWayFMRefiner final : public IRefiner,
           break;
         case 2:
           for (const PartitionID part : _hg.connectivitySet(he)) {
+            _tmp_gains.add(part, 0);
             if (_hg.pinCountInPart(he, part) == _hg.edgeSize(he) - 1) {
               _tmp_gains[part] += he_weight;
             }
@@ -1033,7 +1050,7 @@ class KWayFMRefiner final : public IRefiner,
   }
 
 
-  __attribute__ ((always_inline))
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
   void insertHNintoPQ(const HypernodeID hn) {
     ASSERT(!_hg.marked(hn));
     ASSERT(_hg.isBorderNode(hn));
@@ -1091,14 +1108,14 @@ class KWayFMRefiner final : public IRefiner,
     }
   }
 
-  using FMRefinerBase::_hg;
-  using FMRefinerBase::_config;
-  using FMRefinerBase::_pq;
-  using FMRefinerBase::_performed_moves;
-  using FMRefinerBase::_hns_to_activate;
+  using Base::_hg;
+  using Base::_config;
+  using Base::_pq;
+  using Base::_performed_moves;
+  using Base::_hns_to_activate;
 
   ds::FastResetFlagArray<> _he_fully_active;
-  ds::InsertOnlySparseMap<PartitionID, Gain> _tmp_gains;
+  ds::SparseMap<PartitionID, Gain> _tmp_gains;
 
   // After a move, we have to update the gains for all adjacent HNs.
   // For all moves of a HN that were already present in the PQ before the

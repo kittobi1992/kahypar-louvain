@@ -1,6 +1,22 @@
-/***************************************************************************
- *  Copyright (C) 2016 Sebastian Schlag <sebastian.schlag@kit.edu>
- **************************************************************************/
+/*******************************************************************************
+ * This file is part of KaHyPar.
+ *
+ * Copyright (C) 2016 Sebastian Schlag <sebastian.schlag@kit.edu>
+ *
+ * KaHyPar is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * KaHyPar is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ ******************************************************************************/
 
 #include "gmock/gmock.h"
 
@@ -43,6 +59,17 @@ TYPED_TEST_CASE(ASparseSetSupportingDeletions, ImplementationsWithDeletion);
 TYPED_TEST(ASparseSet, ReturnsTrueIfElementIsInTheSet) {
   this->sparse_set.add(5);
   ASSERT_TRUE(this->sparse_set.contains(5));
+}
+
+TEST(AnInsertOnlySparseSet, HandlesThresholdOverflow) {
+  InsertOnlySparseSet<PartitionID> sparse_set(20);
+  sparse_set.add(5);
+  ASSERT_TRUE(sparse_set.contains(5));
+
+  sparse_set._threshold = std::numeric_limits<PartitionID>::max() - 1;
+  sparse_set.clear();
+  ASSERT_TRUE(sparse_set._threshold == 0);
+  ASSERT_FALSE(sparse_set.contains(5));
 }
 
 TYPED_TEST(ASparseSet, ReturnsFalseIfElementIsNotInTheSet) {

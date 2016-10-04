@@ -1,6 +1,22 @@
-/***************************************************************************
- *  Copyright (C) 2014-2016 Sebastian Schlag <sebastian.schlag@kit.edu>
- **************************************************************************/
+/*******************************************************************************
+ * This file is part of KaHyPar.
+ *
+ * Copyright (C) 2014-2016 Sebastian Schlag <sebastian.schlag@kit.edu>
+ *
+ * KaHyPar is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * KaHyPar is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ ******************************************************************************/
 
 #pragma once
 
@@ -30,11 +46,7 @@ class LazyVertexPairCoarsener final : public ICoarsener,
     Base(hypergraph, config, weight_of_heaviest_node),
     _rater(_hg, _config),
     _outdated_rating(hypergraph.initialNumNodes()),
-    _target(_hg.initialNumNodes()) {
-    LOG("Coarsener does not choose highest degree node as representative!");
-    LOG("This could be slow on instances with skewed incidence structure.");
-    LOG("Press any key to continue.");
-  }
+    _target(_hg.initialNumNodes()) { }
 
   virtual ~LazyVertexPairCoarsener() { }
 
@@ -70,11 +82,9 @@ class LazyVertexPairCoarsener final : public ICoarsener,
             " deg(" << contracted_node << ")=" << _hg.nodeDegree(contracted_node));
 
         ASSERT(_hg.nodeWeight(rep_node) + _hg.nodeWeight(_target[rep_node])
-               <= _rater.thresholdNodeWeight(),
-               "Trying to contract nodes violating maximum node weight");
+               <= _rater.thresholdNodeWeight());
         ASSERT(_pq.topKey() == _rater.rate(rep_node).value,
-               "Key in PQ != rating calculated by rater:" << _pq.topKey() << "!="
-               << _rater.rate(rep_node).value);
+               V(_pq.topKey()) << V(_rater.rate(rep_node).value));
 
         performContraction(rep_node, contracted_node);
         ASSERT(_pq.contains(contracted_node), V(contracted_node));
@@ -108,15 +118,13 @@ class LazyVertexPairCoarsener final : public ICoarsener,
   void updatePQandContractionTarget(const HypernodeID hn, const Rating& rating) {
     _outdated_rating.set(hn, false);
     if (rating.valid) {
-      ASSERT(_pq.contains(hn),
-             "Trying to update rating of HN " << hn << " which is not in PQ");
+      ASSERT(_pq.contains(hn), V(hn));
       _pq.updateKey(hn, rating.value);
       _target[hn] = rating.target;
     } else {
       // In this case, no explicit contaiment check is necessary because the
       // method is only called on rep_node, which is definetly in the PQ.
-      ASSERT(_pq.contains(hn),
-             "Trying to remove rating of HN " << hn << " which is not in PQ");
+      ASSERT(_pq.contains(hn), V(hn));
       _pq.remove(hn);
       DBG(dbg_coarsening_no_valid_contraction, "Progress [" << _hg.currentNumNodes() << "/"
           << _hg.initialNumNodes() << "]:HN " << hn

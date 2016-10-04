@@ -1,6 +1,22 @@
-/***************************************************************************
- *  Copyright (C) 2015 Sebastian Schlag <sebastian.schlag@kit.edu>
- **************************************************************************/
+/*******************************************************************************
+ * This file is part of KaHyPar.
+ *
+ * Copyright (C) 2015 Sebastian Schlag <sebastian.schlag@kit.edu>
+ *
+ * KaHyPar is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * KaHyPar is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ ******************************************************************************/
 
 #pragma once
 
@@ -45,6 +61,10 @@
 #define ARG_N(_1, _2, N, ...) N
 #define RSEQ_N() 2, 1, 0
 
+#if defined(_MSC_VER)
+#define __PRETTY_FUNCTION__ __FUNCTION__
+#endif
+
 #ifdef USE_ASSERTIONS
   #define ASSERT_2(cond, msg)                          \
   do {                                                 \
@@ -80,6 +100,17 @@
   } while (0)
 
 #define ONLYDEBUG(x) ((void)x)
+#define UNUSED_FUNCTION(x) ((void)x)
+
+#if defined(__GNUC__) || defined(__clang__)
 #define UTILS_UNUSED __attribute__ ((unused))
 #define UNUSED(name) unused_ ## name UTILS_UNUSED
-#define UNUSED_FUNCTION(x) ((void)x)
+#else
+#define UNUSED(name) name
+#endif
+
+#if defined(__GNUC__) || defined(__clang__)
+#define KAHYPAR_ATTRIBUTE_ALWAYS_INLINE __attribute__ ((always_inline))
+#else
+#define KAHYPAR_ATTRIBUTE_ALWAYS_INLINE
+#endif

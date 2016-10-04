@@ -1,6 +1,22 @@
-/***************************************************************************
- *  Copyright (C) 2015 Tobias Heuer <tobias.heuer@gmx.net>
- **************************************************************************/
+/*******************************************************************************
+ * This file is part of KaHyPar.
+ *
+ * Copyright (C) 2015 Tobias Heuer <tobias.heuer@gmx.net>
+ *
+ * KaHyPar is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * KaHyPar is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ *
+******************************************************************************/
 
 #include <memory>
 #include <queue>
@@ -86,8 +102,8 @@ TEST_F(ALabelPropagationMaxGainMoveTest,
   hypergraph.setNodePart(5, 1);
   hypergraph.setNodePart(6, 1);
   std::pair<PartitionID, Gain> max_move = partitioner->computeMaxGainMove(0);
-  ASSERT_EQ(max_move.first, 1);
-  ASSERT_EQ(max_move.second, 2);
+  ASSERT_EQ(max_move.first, 0);
+  ASSERT_EQ(max_move.second, 0);
 }
 
 TEST_F(ALabelPropagationMaxGainMoveTest,
@@ -96,8 +112,8 @@ TEST_F(ALabelPropagationMaxGainMoveTest,
   hypergraph.setNodePart(1, 1);
   hypergraph.setNodePart(3, 1);
   std::pair<PartitionID, Gain> max_move = partitioner->computeMaxGainMove(0);
-  ASSERT_EQ(max_move.first, 1);
-  ASSERT_EQ(max_move.second, 1);
+  ASSERT_EQ(max_move.first, 0);
+  ASSERT_EQ(max_move.second, 0);
 }
 
 TEST_F(ALabelPropagationMaxGainMoveTest, AllMaxGainMovesAZeroGainMovesIfNoHypernodeIsAssigned) {

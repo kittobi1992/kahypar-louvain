@@ -1,6 +1,22 @@
-/***************************************************************************
- *  Copyright (C) 2014 Sebastian Schlag <sebastian.schlag@kit.edu>
- **************************************************************************/
+/*******************************************************************************
+ * This file is part of KaHyPar.
+ *
+ * Copyright (C) 2014 Sebastian Schlag <sebastian.schlag@kit.edu>
+ *
+ * KaHyPar is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * KaHyPar is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with KaHyPar.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ ******************************************************************************/
 
 #pragma once
 
@@ -13,7 +29,6 @@
 #include "kahypar/macros.h"
 #include "kahypar/partition/metrics.h"
 #include "kahypar/partition/refinement/uncontraction_gain_changes.h"
-#include "kahypar/utils/stats.h"
 
 namespace kahypar {
 class IRefiner {
@@ -33,13 +48,15 @@ class IRefiner {
                       best_metrics);
   }
 
-  void initialize() {
-    initializeImpl();
-  }
-
+#ifdef USE_BUCKET_PQ
   void initialize(const HyperedgeWeight max_gain) {
     initializeImpl(max_gain);
   }
+#else
+  void initialize() {
+    initializeImpl();
+  }
+#endif
 
   std::string policyString() const {
     return policyStringImpl();
@@ -56,8 +73,13 @@ class IRefiner {
                           const std::array<HypernodeWeight, 2>& max_allowed_part_weights,
                           const UncontractionGainChanges& uncontraction_changes,
                           Metrics& best_metrics) = 0;
-  virtual void initializeImpl() { }
-  virtual void initializeImpl(const HyperedgeWeight) { }
+
+#ifdef USE_BUCKET_PQ
+  virtual void initializeImpl(const HyperedgeWeight) = 0;
+#else
+  virtual void initializeImpl() = 0;
+#endif
+
   virtual std::string policyStringImpl() const = 0;
 };
 }  // namespace kahypar
