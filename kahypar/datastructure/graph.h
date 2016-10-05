@@ -20,11 +20,7 @@
 namespace kahypar {
 namespace ds {
 
-using NodeID = HypernodeID;
 #define INVALID_NODE std::numeric_limits<NodeID>::max()
-using EdgeID = HyperedgeID;
-using EdgeWeight = long double;
-using ClusterID = PartitionID;
     
 struct Edge {
     NodeID targetNode;
@@ -48,8 +44,9 @@ class Graph {
     
 public:
     Graph(const Hypergraph& hypergraph) : _N(hypergraph.initialNumNodes()+hypergraph.initialNumEdges()),
-                                          _adj_array(_N+1), _nodes(_N), _edges(), _selfloop(_N,0.0L),
-                                          _cluster_id(_N), _incidentClusterWeight(_N,IncidentClusterWeight(0,0.0L)),
+                                          _adj_array(_N+1), _nodes(_N), _edges(), 
+                                          _selfloop(_N,0.0L), _weightedDegree(_N,0.0L), _cluster_id(_N), 
+                                          _incidentClusterWeight(_N,IncidentClusterWeight(0,0.0L)),
                                           _total_weight(0.0L), _posInIncidentClusterWeightVector(_N) {
         std::iota(_nodes.begin(),_nodes.end(),0);
         std::iota(_cluster_id.begin(),_cluster_id.end(),0);
@@ -58,7 +55,7 @@ public:
     
     Graph(const std::vector<NodeID>& adj_array, const std::vector<Edge>& edges) 
                 : _N(adj_array.size()-1),_adj_array(adj_array), _nodes(_N), _edges(edges), _selfloop(_N,0.0L),
-                  _cluster_id(_N), _incidentClusterWeight(_N,IncidentClusterWeight(0,0.0L)),
+                  _weightedDegree(_N,0.0L) , _cluster_id(_N), _incidentClusterWeight(_N,IncidentClusterWeight(0,0.0L)),
                   _total_weight(0.0L), _posInIncidentClusterWeightVector(_N) {
         std::iota(_nodes.begin(),_nodes.end(),0);
         std::iota(_cluster_id.begin(),_cluster_id.end(),0);
@@ -69,13 +66,14 @@ public:
                     _selfloop[node] = e.weight;
                 }
                 _total_weight += e.weight;
+                _weightedDegree[node] += e.weight;
             }
         }
     }
     
     Graph(Graph&& other) : _N(std::move(other._N)),_adj_array(std::move(other._adj_array)), _nodes(other._N),
                            _edges(std::move(other._edges)), _selfloop(std::move(other._selfloop)),
-                           _cluster_id(std::move(other._cluster_id)), _incidentClusterWeight(std::move(other._incidentClusterWeight)),
+                           _weightedDegree(std::move(other._weightedDegree)),_cluster_id(std::move(other._cluster_id)), _incidentClusterWeight(std::move(other._incidentClusterWeight)),
                            _total_weight(std::move(other._total_weight)), 
                            _posInIncidentClusterWeightVector(std::move(other._posInIncidentClusterWeightVector)) { }
     
@@ -105,6 +103,10 @@ public:
     size_t degree(const NodeID id) const  {
         ASSERT(id < numNodes(), "NodeID " << id << " doesn't exist!");
         return static_cast<size_t>(_adj_array[id+1]-_adj_array[id]);
+    }
+    
+    EdgeWeight weightedDegree(const NodeID id) const {
+        return _weightedDegree[id];
     }
     
     EdgeWeight selfloopWeight(const NodeID node) const {
@@ -154,6 +156,7 @@ protected:
     std::vector<NodeID> _nodes;
     std::vector<Edge> _edges;
     std::vector<EdgeWeight> _selfloop;
+    std::vector<EdgeWeight> _weightedDegree;
     std::vector<ClusterID> _cluster_id;
     std::vector<IncidentClusterWeight> _incidentClusterWeight;
     
@@ -218,6 +221,7 @@ private:
                 e.weight = static_cast<EdgeWeight>(hg.edgeWeight(he))/
                            static_cast<EdgeWeight>(hg.edgeSize(he));
                 _total_weight += e.weight;
+                _weightedDegree[hn] += e.weight;
                 _edges[_adj_array[hn] + pos++] = e;
             }
         }
@@ -230,6 +234,7 @@ private:
                 e.weight = static_cast<EdgeWeight>(hg.edgeWeight(he))/
                            static_cast<EdgeWeight>(hg.edgeSize(he));
                 _total_weight += e.weight;
+                _weightedDegree[N + he] += e.weight;
                 _edges[_adj_array[N + he]+pos++] = e;
            }
         }
@@ -243,19 +248,24 @@ std::pair<IncidentClusterWeightIterator,IncidentClusterWeightIterator> Graph::in
     _posInIncidentClusterWeightVector.clear();
     size_t idx = 0;
     
-    _incidentClusterWeight[idx] = IncidentClusterWeight(clusterID(node),0.0L);
-    _posInIncidentClusterWeightVector[clusterID(node)] = idx++;
+    if(clusterID(node) != -1) {
+        _incidentClusterWeight[idx] = IncidentClusterWeight(clusterID(node),0.0L);
+        _posInIncidentClusterWeightVector[clusterID(node)] = idx++;
+    }
+    
     for(Edge e : adjacentNodes(node)) {
         NodeID id = e.targetNode;
         EdgeWeight w = e.weight;
         ClusterID c_id = clusterID(id);
-        if(_posInIncidentClusterWeightVector.contains(c_id)) {
-            size_t i = _posInIncidentClusterWeightVector[c_id];
-            _incidentClusterWeight[i].weight += w;
-        }
-        else {
-            _incidentClusterWeight[idx] = IncidentClusterWeight(c_id,w);
-            _posInIncidentClusterWeightVector[c_id] = idx++;
+        if(c_id != -1) {
+            if(_posInIncidentClusterWeightVector.contains(c_id)) {
+                size_t i = _posInIncidentClusterWeightVector[c_id];
+                _incidentClusterWeight[i].weight += w;
+            }
+            else {
+                _incidentClusterWeight[idx] = IncidentClusterWeight(c_id,w);
+                _posInIncidentClusterWeightVector[c_id] = idx++;
+            }
         }
     }
     
