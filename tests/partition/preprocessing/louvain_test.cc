@@ -115,12 +115,11 @@ TEST_F(AModularityMeasure,CalculatesCorrectGainValuesForIsolatedNode) {
     }
 }
 
-TEST_F(ALouvainAlgorithm,DoOneLouvainPass) { 
+TEST_F(ALouvainAlgorithm,DoesOneLouvainPass) { 
     Graph graph(hypergraph);
     Modularity modularity(graph);
     EdgeWeight quality_before = modularity.quality();
-    louvain->louvain_pass(graph,modularity);
-    EdgeWeight quality_after = modularity.quality();
+    EdgeWeight quality_after = louvain->louvain_pass(graph,modularity);
     ASSERT_LE(quality_before,quality_after);
 }
 
@@ -145,7 +144,7 @@ TEST_F(ALouvainAlgorithm,AssingsMappingToNextLevelFinerGraph) {
     ASSERT_EQ(2,graph.clusterID(10));
 }
 
-TEST_F(ALouvainAlgorithm,DoLouvainAlgorithm) { 
+TEST_F(ALouvainAlgorithm,DoesLouvainAlgorithm) { 
     louvain->louvain();
 }
 

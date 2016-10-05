@@ -129,7 +129,7 @@ TEST_F(AGraph, DeterminesIncidentClusterWeightsOfAClusterCorrect) {
     graph->setClusterID(10,2);
     
     //Checks incident clusters of cluster with ID 0
-    std::vector<EdgeWeight> cluster_weight = {1.0L,0.25L,1.0L/3.0L};
+    std::vector<EdgeWeight> cluster_weight = {2.0L,0.25L,1.0L/3.0L};
     std::vector<bool> incident_cluster = {true,true,true};
     for(auto incidentClusterWeight : graph->incidentClusterWeightOfCluster(0)) {
         ClusterID c_id = incidentClusterWeight.clusterID;
@@ -139,7 +139,7 @@ TEST_F(AGraph, DeterminesIncidentClusterWeightsOfAClusterCorrect) {
     }
     
     //Checks incident clusters of cluster with ID 1
-    cluster_weight = {1.0L/4.0L,0.75L+2.0L/3.0L,1.0L/3.0L};
+    cluster_weight = {1.0L/4.0L,1.5L+4.0L/3.0L,1.0L/3.0L};
     incident_cluster = {true,true,true};
     for(auto incidentClusterWeight : graph->incidentClusterWeightOfCluster(1)) {
         ClusterID c_id = incidentClusterWeight.clusterID;
@@ -149,7 +149,7 @@ TEST_F(AGraph, DeterminesIncidentClusterWeightsOfAClusterCorrect) {
     }
     
     //Checks incident clusters of cluster with ID 2
-    cluster_weight = {1.0L/3.0L,1.0L/3.0L,2.0L/3.0L};
+    cluster_weight = {1.0L/3.0L,1.0L/3.0L,4.0L/3.0L};
     incident_cluster = {true,true,true};
     for(auto incidentClusterWeight : graph->incidentClusterWeightOfCluster(2)) {
         ClusterID c_id = incidentClusterWeight.clusterID;
@@ -193,7 +193,7 @@ TEST_F(AGraph, ReturnCorrectContractedGraph) {
     ASSERT_EQ(3,graph.numNodes());
     
     //Check cluster 0
-    std::vector<EdgeWeight> edge_weight = {1.0L,0.25L,1.0L/3.0L};
+    std::vector<EdgeWeight> edge_weight = {2.0L,0.25L,1.0L/3.0L};
     std::vector<bool> incident_nodes = {true,true,true};
     for(Edge e : graph.adjacentNodes(0)) {
         NodeID n_id = e.targetNode;
@@ -203,7 +203,7 @@ TEST_F(AGraph, ReturnCorrectContractedGraph) {
     }
     
     //Check cluster 1
-    edge_weight = {1.0L/4.0L,0.75L+2.0L/3.0L,1.0L/3.0L};
+    edge_weight = {1.0L/4.0L,1.5L+4.0L/3.0L,1.0L/3.0L};
     incident_nodes = {true,true,true};
     for(Edge e : graph.adjacentNodes(1)) {
         NodeID n_id = e.targetNode;
@@ -213,7 +213,7 @@ TEST_F(AGraph, ReturnCorrectContractedGraph) {
     }
     
     //Check cluster 2
-    edge_weight = {1.0L/3.0L,1.0L/3.0L,2.0L/3.0L};
+    edge_weight = {1.0L/3.0L,1.0L/3.0L,4.0L/3.0L};
     incident_nodes = {true,true,true};
     for(Edge e : graph.adjacentNodes(2)) {
         NodeID n_id = e.targetNode;
@@ -237,9 +237,9 @@ TEST_F(AGraph, HasCorrectSelfloopWeights) {
     Graph graph(std::move(contractedGraph.first));
     std::vector<NodeID> mappingToOriginalGraph = contractedGraph.second;
     
-    ASSERT_LE(std::abs(1.0L-graph.selfloopWeight(0)),EPS);
-    ASSERT_LE(std::abs((0.75L+2.0L/3.0L)-graph.selfloopWeight(1)),EPS);
-    ASSERT_LE(std::abs(2.0L/3.0L-graph.selfloopWeight(2)),EPS);
+    ASSERT_LE(std::abs(2.0L-graph.selfloopWeight(0)),EPS);
+    ASSERT_LE(std::abs((1.5L+4.0L/3.0L)-graph.selfloopWeight(1)),EPS);
+    ASSERT_LE(std::abs(4.0L/3.0L-graph.selfloopWeight(2)),EPS);
     
 }
 

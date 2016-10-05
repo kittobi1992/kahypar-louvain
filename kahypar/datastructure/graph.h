@@ -92,9 +92,9 @@ public:
         return std::make_pair(_nodes.begin(),_nodes.end());
     }
     
-    std::pair<EdgeIterator,EdgeIterator> adjacentNodes(const NodeID id) const {
-        ASSERT(id < numNodes(), "NodeID " << id << " doesn't exist!");
-        return std::make_pair(_edges.cbegin()+_adj_array[id],_edges.cbegin()+_adj_array[id+1]);
+    std::pair<EdgeIterator,EdgeIterator> adjacentNodes(const NodeID node) const {
+        ASSERT(node < numNodes(), "NodeID " << node << " doesn't exist!");
+        return std::make_pair(_edges.cbegin()+_adj_array[node],_edges.cbegin()+_adj_array[node+1]);
     }
     
     size_t numNodes() const {
@@ -105,16 +105,18 @@ public:
         return _edges.size();
     }
     
-    size_t degree(const NodeID id) const  {
-        ASSERT(id < numNodes(), "NodeID " << id << " doesn't exist!");
-        return static_cast<size_t>(_adj_array[id+1]-_adj_array[id]);
+    size_t degree(const NodeID node) const  {
+        ASSERT(node < numNodes(), "NodeID " << node << " doesn't exist!");
+        return static_cast<size_t>(_adj_array[node+1]-_adj_array[node]);
     }
     
-    EdgeWeight weightedDegree(const NodeID id) const {
-        return _weightedDegree[id];
+    EdgeWeight weightedDegree(const NodeID node) const {
+        ASSERT(node < numNodes(), "NodeID " << node << " doesn't exist!");
+        return _weightedDegree[node];
     }
     
     EdgeWeight selfloopWeight(const NodeID node) const {
+        ASSERT(node < numNodes(), "NodeID " << node << " doesn't exist!");
         return _selfloop[node];
     }
     
@@ -122,14 +124,14 @@ public:
         return _total_weight;
     }
     
-    ClusterID clusterID(const NodeID id) const  {
-        ASSERT(id < numNodes(), "NodeID " << id << " doesn't exist!");
-        return _cluster_id[id];
+    ClusterID clusterID(const NodeID node) const  {
+        ASSERT(node < numNodes(), "NodeID " << node << " doesn't exist!");
+        return _cluster_id[node];
     }
     
-    void setClusterID(const NodeID id, const ClusterID c_id) {
-        ASSERT(id < numNodes(), "NodeID " << id << " doesn't exist!");
-        _cluster_id[id] = c_id;
+    void setClusterID(const NodeID node, const ClusterID c_id) {
+        ASSERT(node < numNodes(), "NodeID " << node << " doesn't exist!");
+        _cluster_id[node] = c_id;
     }
     
     /**
@@ -297,13 +299,6 @@ std::pair<IncidentClusterWeightIterator,IncidentClusterWeightIterator> Graph::in
                     _posInIncidentClusterWeightVector[c_id] = idx++;
                 }
             }
-        }
-    }
-    
-    for(size_t i = 0; i < idx; ++i) {
-        if(_incidentClusterWeight[i].clusterID == cid) {
-            _incidentClusterWeight[i].weight /= 2.0L; 
-            break;
         }
     }
     
