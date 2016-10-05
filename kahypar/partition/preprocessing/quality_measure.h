@@ -43,7 +43,7 @@ private:
 class Modularity : public QualityMeasure {
 
 public:
-    Modularity(Graph& graph) : QualityMeasure(graph), in(graph.numNodes()), tot(graph.numNodes()) { 
+    Modularity(Graph& graph) : QualityMeasure(graph), in(graph.numNodes()), tot(graph.numNodes()), vis(graph.numNodes()) { 
         for(NodeID node : graph.nodes()) {
             in[node] = graph.selfloopWeight(node);
             tot[node] = graph.weightedDegree(node);
@@ -74,10 +74,10 @@ public:
         
         graph.setClusterID(node,new_cid);
         
-        ASSERT([&]() {
+        /*ASSERT([&]() {
            EdgeWeight q = quality();
            return q < std::numeric_limits<EdgeWeight>::max();
-        }(), "");
+        }(), "");*/
     }
     
     inline EdgeWeight gain(NodeID node, ClusterID cid, EdgeWeight incidentCommWeight) {
@@ -90,7 +90,7 @@ public:
         
         EdgeWeight gain = incidentCommWeight - totc*w_degree/m2;
         
-        ASSERT([&]() {
+        /*ASSERT([&]() {
             EdgeWeight modularity_before = modularity();
             insert(node,cid,incidentCommWeight);
             EdgeWeight modularity_after = modularity();
@@ -102,7 +102,7 @@ public:
                 return false;
             }
             return true;
-        }(), "Gain calculation failed!");
+        }(), "Gain calculation failed!");*/
         
         return gain;
     }
@@ -120,7 +120,7 @@ public:
         
         q /= m2;
         
-        ASSERT(std::abs(q-modularity()) < EPS, "Calculated modularity (q=" << q << ") is not equal with the real modularity (modularity=" << modularity() << ")!");
+        //ASSERT(std::abs(q-modularity()) < EPS, "Calculated modularity (q=" << q << ") is not equal with the real modularity (modularity=" << modularity() << ")!");
         
         return q;
     }
@@ -134,8 +134,6 @@ private:
     EdgeWeight modularity() {
         EdgeWeight q = 0.0L;
         EdgeWeight m2 = graph.totalWeight();
-        
-        FastResetFlagArray<> vis(graph.numNodes());
         
         for(NodeID u : graph.nodes()) {
             for(Edge edge : graph.adjacentNodes(u)) {
@@ -160,6 +158,7 @@ private:
     using QualityMeasure::graph;
     std::vector<EdgeWeight> in;
     std::vector<EdgeWeight> tot;
+    FastResetFlagArray<> vis;
     
     
 };

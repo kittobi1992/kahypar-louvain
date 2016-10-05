@@ -71,7 +71,7 @@ public:
         }
     }
     
-    Graph(Graph&& other) : _N(std::move(other._N)),_adj_array(std::move(other._adj_array)),                     _nodes(std::move(other._nodes)),
+    Graph(Graph&& other) : _N(std::move(other._N)),_adj_array(std::move(other._adj_array)), _nodes(std::move(other._nodes)),
                            _edges(std::move(other._edges)), _selfloop(std::move(other._selfloop)),
                            _weightedDegree(std::move(other._weightedDegree)),_cluster_id(std::move(other._cluster_id)), _incidentClusterWeight(std::move(other._incidentClusterWeight)),
                            _total_weight(std::move(other._total_weight)), 

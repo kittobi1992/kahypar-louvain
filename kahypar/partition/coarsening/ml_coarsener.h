@@ -29,6 +29,8 @@
 #include "kahypar/definitions.h"
 #include "kahypar/macros.h"
 #include "kahypar/partition/coarsening/rating_tie_breaking_policies.h"
+#include "kahypar/partition/preprocessing/louvain.h"
+#include "kahypar/partition/preprocessing/quality_measure.h"
 
 namespace kahypar {
 class MLCoarsener final : public ICoarsener,
@@ -67,7 +69,7 @@ class MLCoarsener final : public ICoarsener,
   MLCoarsener(Hypergraph& hypergraph, const Configuration& config,
               const HypernodeWeight weight_of_heaviest_node) :
     Base(hypergraph, config, weight_of_heaviest_node),
-    _tmp_ratings(_hg.initialNumNodes()) { }
+    _tmp_ratings(_hg.initialNumNodes()), _comm(_hg.initialNumNodes(),0) { }
 
   virtual ~MLCoarsener() { }
 
@@ -79,6 +81,15 @@ class MLCoarsener final : public ICoarsener,
 
  private:
   void coarsenImpl(const HypernodeID limit) override final {
+      
+    Louvain<Modularity> louvain(_hg);
+    HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+    louvain.louvain();
+    //_comm = std::move(louvain.getClusterIDsForAllHypernodes());
+    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed_seconds = end - start;
+    LOG("Louvain-Time: " << elapsed_seconds.count() << "s");
+      
     int pass_nr = 0;
     std::vector<HypernodeID> current_hns;
     ds::FastResetFlagArray<> already_matched(_hg.initialNumNodes());
@@ -203,5 +214,6 @@ class MLCoarsener final : public ICoarsener,
   using Base::_config;
   using Base::_history;
   ds::SparseMap<HypernodeID, RatingType> _tmp_ratings;
+  std::vector<ClusterID> _comm;
 };
 }  // namespace kahypar

@@ -26,7 +26,7 @@ class Louvain {
     
 public:
     
-    Louvain(const Hypergraph& hypergraph) : graph(hypergraph) { }
+    Louvain(const Hypergraph& hypergraph) : graph(hypergraph), _num_hypernodes(hypergraph.initialNumNodes()) { }
     
     
     void louvain() {
@@ -58,6 +58,8 @@ public:
             cur_quality = louvain_pass(graph_stack[cur_idx],quality);
             improvement = cur_quality - old_quality > EPS;
             
+            LOG("Old Quality: " << old_quality << " - New Quality: " << cur_quality);
+            
             if(improvement) {
                 ASSERT(cur_quality-old_quality >= EPS, "Quality should be improved during louvain pass!");
                 cur_quality = quality.quality();
@@ -68,17 +70,26 @@ public:
             
         } while(improvement);
         
-        ASSERT((mapping_stack.size() + 1) == graph_stack.size(), "Unequality between graph and mappings!");
+        ASSERT((mapping_stack.size() + 1) == graph_stack.size(), "Unequality between graph and mapping stack!");
         while(!mapping_stack.empty()) {
             assignClusterToNextLevelFinerGraph(graph_stack[cur_idx-1],graph_stack[cur_idx],mapping_stack[cur_idx-1]);
             graph_stack.pop_back();
             mapping_stack.pop_back();
+            cur_idx--;
         }
         
-        for(NodeID node : graph.nodes()) {
+        for(NodeID node : graph.nodes()) { 
             graph.setClusterID(node,graph_stack[0].clusterID(node));    
         }    
         
+    }
+    
+    std::vector<ClusterID> getClusterIDsForAllHypernodes() {
+        std::vector<ClusterID> clusterIDs(_num_hypernodes,0);
+        for(NodeID node : graph.nodes()) {
+            clusterIDs[node] = graph.clusterID(node);
+        }
+        return clusterIDs;
     }
 
 private:
@@ -110,6 +121,7 @@ private:
         //TODO(heuer): Think about shuffling nodes before louvain pass
 
         do {
+            
             node_moves = 0;
             
             for(NodeID node : g.nodes()) {
@@ -120,7 +132,7 @@ private:
                 EdgeWeight best_gain = 0.0L;
                 
                 for(Edge e : g.adjacentNodes(node)) {
-                    if(g.clusterID(e.targetNode) == cur_cid) {
+                    if(g.clusterID(e.targetNode) == cur_cid && e.targetNode != node) {
                         cur_incident_cluster_weight += e.weight;
                     }
                 }
@@ -168,6 +180,7 @@ private:
     }
     
     Graph graph;
+    HypernodeID _num_hypernodes;
 };
 
 }  // namespace kahypar
