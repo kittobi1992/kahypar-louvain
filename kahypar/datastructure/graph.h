@@ -47,7 +47,7 @@ using IncidentClusterWeightIterator = std::vector<IncidentClusterWeight>::const_
 class Graph {
     
 public:
-    Graph(Hypergraph& hypergraph) : _N(hypergraph.initialNumNodes()+hypergraph.initialNumEdges()),
+    Graph(const Hypergraph& hypergraph) : _N(hypergraph.initialNumNodes()+hypergraph.initialNumEdges()),
                                          _adj_array(_N+1), _nodes(_N), _edges(), 
                                          _cluster_id(_N), _incidentClusterWeight(_N,IncidentClusterWeight(0,0.0L)),
                                          _posInIncidentClusterWeightVector(_N) {
@@ -56,7 +56,7 @@ public:
         constructBipartiteGraph(hypergraph);
     }
     
-    Graph(std::vector<NodeID>& adj_array, std::vector<Edge>& edges) 
+    Graph(const std::vector<NodeID>& adj_array, const std::vector<Edge>& edges) 
                : _N(adj_array.size()-1),_adj_array(adj_array), _nodes(_N), _edges(edges), 
                  _cluster_id(_N), _incidentClusterWeight(_N,IncidentClusterWeight(0,0.0L)),
                  _posInIncidentClusterWeightVector(_N) {
@@ -68,9 +68,9 @@ public:
         return std::make_pair(_nodes.begin(),_nodes.end());
     }
     
-    std::pair<EdgeIterator,EdgeIterator> adjacentNodes(NodeID id) const {
+    std::pair<EdgeIterator,EdgeIterator> adjacentNodes(const NodeID id) const {
         ASSERT(id < numNodes(), "NodeID " << id << " doesn't exist!");
-        return std::make_pair(_edges.begin()+_adj_array[id],_edges.begin()+_adj_array[id+1]);
+        return std::make_pair(_edges.cbegin()+_adj_array[id],_edges.cbegin()+_adj_array[id+1]);
     }
     
     size_t numNodes() const {
@@ -81,17 +81,17 @@ public:
         return _edges.size();
     }
     
-    size_t degree(NodeID id) {
+    size_t degree(const NodeID id) const  {
         ASSERT(id < numNodes(), "NodeID " << id << " doesn't exist!");
         return static_cast<size_t>(_adj_array[id+1]-_adj_array[id]);
     }
     
-    ClusterID clusterID(NodeID id) {
+    ClusterID clusterID(const NodeID id) const  {
         ASSERT(id < numNodes(), "NodeID " << id << " doesn't exist!");
         return _cluster_id[id];
     }
     
-    void setClusterID(NodeID id, ClusterID c_id) {
+    void setClusterID(const NodeID id, const ClusterID c_id) {
         ASSERT(id < numNodes(), "NodeID " << id << " doesn't exist!");
         _cluster_id[id] = c_id;
     }
@@ -104,7 +104,7 @@ public:
      * @param node NodeID, which incident clusters should be evaluated
      * @return Iterator to all incident clusters of NodeID node
      */
-    std::pair<IncidentClusterWeightIterator,IncidentClusterWeightIterator> incidentClusterWeightOfNode(NodeID node);
+    std::pair<IncidentClusterWeightIterator,IncidentClusterWeightIterator> incidentClusterWeightOfNode(const NodeID node);
     
     
     /**
@@ -145,7 +145,7 @@ private:
      * @param cid ClusterID, which incident clusters should be evaluated
      * @return Iterator to all incident clusters of ClusterID cid
      */
-    std::pair<IncidentClusterWeightIterator,IncidentClusterWeightIterator> incidentClusterWeightOfCluster(ClusterID cid);
+    std::pair<IncidentClusterWeightIterator,IncidentClusterWeightIterator> incidentClusterWeightOfCluster(const ClusterID cid);
     
     void constructBipartiteGraph(const Hypergraph& hg) {
         NodeID sum_edges = 0;
@@ -203,7 +203,7 @@ private:
     
 };
 
-std::pair<IncidentClusterWeightIterator,IncidentClusterWeightIterator> Graph::incidentClusterWeightOfNode(NodeID node) {
+std::pair<IncidentClusterWeightIterator,IncidentClusterWeightIterator> Graph::incidentClusterWeightOfNode(const NodeID node) {
     
     _posInIncidentClusterWeightVector.clear();
     size_t idx = 0;
@@ -227,7 +227,7 @@ std::pair<IncidentClusterWeightIterator,IncidentClusterWeightIterator> Graph::in
     return std::make_pair(_incidentClusterWeight.begin(),_incidentClusterWeight.begin()+idx);
 }
 
-std::pair<IncidentClusterWeightIterator,IncidentClusterWeightIterator> Graph::incidentClusterWeightOfCluster(ClusterID cid) {
+std::pair<IncidentClusterWeightIterator,IncidentClusterWeightIterator> Graph::incidentClusterWeightOfCluster(const ClusterID cid) {
     
     _posInIncidentClusterWeightVector.clear();
     size_t idx = 0;
