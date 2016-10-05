@@ -8,6 +8,7 @@
 #include "gmock/gmock.h"
 
 #include "kahypar/definitions.h"
+#include "kahypar/macros.h"
 #include "kahypar/partition/preprocessing/louvain.h"
 #include "kahypar/partition/preprocessing/quality_measure.h"
 
@@ -114,6 +115,38 @@ TEST_F(AModularityMeasure,CalculatesCorrectGainValuesForIsolatedNode) {
     }
 }
 
-TEST_F(ALouvainAlgorithm,PseudoTest) { }
+TEST_F(ALouvainAlgorithm,DoOneLouvainPass) { 
+    Graph graph(hypergraph);
+    Modularity modularity(graph);
+    EdgeWeight quality_before = modularity.quality();
+    louvain->louvain_pass(graph,modularity);
+    EdgeWeight quality_after = modularity.quality();
+    ASSERT_LE(quality_before,quality_after);
+}
+
+TEST_F(ALouvainAlgorithm,AssingsMappingToNextLevelFinerGraph) {
+    Graph graph(hypergraph);
+    Modularity modularity(graph);
+    louvain->louvain_pass(graph,modularity);
+    auto contraction = graph.contractCluster();
+    Graph coarseGraph = std::move(contraction.first);
+    std::vector<NodeID> mapping = std::move(contraction.second);
+    louvain->assignClusterToNextLevelFinerGraph(graph,coarseGraph,mapping);
+    ASSERT_EQ(0,graph.clusterID(0));
+    ASSERT_EQ(1,graph.clusterID(1));
+    ASSERT_EQ(0,graph.clusterID(2));
+    ASSERT_EQ(1,graph.clusterID(3));
+    ASSERT_EQ(1,graph.clusterID(4));
+    ASSERT_EQ(2,graph.clusterID(5));
+    ASSERT_EQ(2,graph.clusterID(6));
+    ASSERT_EQ(0,graph.clusterID(7));
+    ASSERT_EQ(1,graph.clusterID(8));
+    ASSERT_EQ(1,graph.clusterID(9));
+    ASSERT_EQ(2,graph.clusterID(10));
+}
+
+TEST_F(ALouvainAlgorithm,DoLouvainAlgorithm) { 
+    louvain->louvain();
+}
 
 } //namespace kahypar

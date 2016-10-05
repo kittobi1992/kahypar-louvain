@@ -71,13 +71,18 @@ public:
         }
     }
     
-    Graph(Graph&& other) : _N(std::move(other._N)),_adj_array(std::move(other._adj_array)), _nodes(other._N),
+    Graph(Graph&& other) : _N(std::move(other._N)),_adj_array(std::move(other._adj_array)),                     _nodes(std::move(other._nodes)),
                            _edges(std::move(other._edges)), _selfloop(std::move(other._selfloop)),
                            _weightedDegree(std::move(other._weightedDegree)),_cluster_id(std::move(other._cluster_id)), _incidentClusterWeight(std::move(other._incidentClusterWeight)),
                            _total_weight(std::move(other._total_weight)), 
                            _posInIncidentClusterWeightVector(std::move(other._posInIncidentClusterWeightVector)) { }
     
-    Graph(const Graph&) = delete;
+    Graph(const Graph& other): _N(other._N),_adj_array(other._adj_array), _nodes(other._nodes),
+                               _edges(other._edges), _selfloop(other._selfloop),
+                               _weightedDegree(other._weightedDegree),_cluster_id(other._cluster_id), _incidentClusterWeight(other._incidentClusterWeight),
+                               _total_weight(other._total_weight), 
+                               _posInIncidentClusterWeightVector(_N)  { }
+                               
     Graph& operator=(const Graph&) = delete;
     Graph& operator=(Graph&&) = delete;
     
