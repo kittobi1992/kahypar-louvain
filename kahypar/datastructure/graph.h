@@ -48,21 +48,42 @@ class Graph {
     
 public:
     Graph(const Hypergraph& hypergraph) : _N(hypergraph.initialNumNodes()+hypergraph.initialNumEdges()),
-                                         _adj_array(_N+1), _nodes(_N), _edges(), 
-                                         _cluster_id(_N), _incidentClusterWeight(_N,IncidentClusterWeight(0,0.0L)),
-                                         _posInIncidentClusterWeightVector(_N) {
+                                          _adj_array(_N+1), _nodes(_N), _edges(), _selfloop(_N,0.0L),
+                                          _cluster_id(_N), _incidentClusterWeight(_N,IncidentClusterWeight(0,0.0L)),
+                                          _total_weight(0.0L), _posInIncidentClusterWeightVector(_N) {
         std::iota(_nodes.begin(),_nodes.end(),0);
         std::iota(_cluster_id.begin(),_cluster_id.end(),0);
         constructBipartiteGraph(hypergraph);
     }
     
     Graph(const std::vector<NodeID>& adj_array, const std::vector<Edge>& edges) 
-               : _N(adj_array.size()-1),_adj_array(adj_array), _nodes(_N), _edges(edges), 
-                 _cluster_id(_N), _incidentClusterWeight(_N,IncidentClusterWeight(0,0.0L)),
-                 _posInIncidentClusterWeightVector(_N) {
+                : _N(adj_array.size()-1),_adj_array(adj_array), _nodes(_N), _edges(edges), _selfloop(_N,0.0L),
+                  _cluster_id(_N), _incidentClusterWeight(_N,IncidentClusterWeight(0,0.0L)),
+                  _total_weight(0.0L), _posInIncidentClusterWeightVector(_N) {
         std::iota(_nodes.begin(),_nodes.end(),0);
         std::iota(_cluster_id.begin(),_cluster_id.end(),0);
+        
+        for(NodeID node : nodes()) {
+            for(Edge e : adjacentNodes(node)) {
+                if(node == e.targetNode) {
+                    _selfloop[node] = e.weight;
+                }
+                _total_weight += e.weight;
+            }
+        }
     }
+    
+    Graph(Graph&& other) : _N(std::move(other._N)),_adj_array(std::move(other._adj_array)), _nodes(other._N),
+                           _edges(std::move(other._edges)), _selfloop(std::move(other._selfloop)),
+                           _cluster_id(std::move(other._cluster_id)), _incidentClusterWeight(std::move(other._incidentClusterWeight)),
+                           _total_weight(std::move(other._total_weight)), 
+                           _posInIncidentClusterWeightVector(std::move(other._posInIncidentClusterWeightVector)) { }
+    
+    Graph(const Graph&) = delete;
+    Graph& operator=(const Graph&) = delete;
+    Graph& operator=(Graph&&) = delete;
+    
+    
     
     std::pair<NodeIterator,NodeIterator> nodes() const {
         return std::make_pair(_nodes.begin(),_nodes.end());
@@ -84,6 +105,14 @@ public:
     size_t degree(const NodeID id) const  {
         ASSERT(id < numNodes(), "NodeID " << id << " doesn't exist!");
         return static_cast<size_t>(_adj_array[id+1]-_adj_array[id]);
+    }
+    
+    EdgeWeight selfloopWeight(const NodeID node) const {
+        return _selfloop[node];
+    }
+    
+    EdgeWeight totalWeight() const {
+        return _total_weight;
     }
     
     ClusterID clusterID(const NodeID id) const  {
@@ -118,6 +147,19 @@ public:
      */
     std::pair<Graph,std::vector<NodeID>> contractCluster();
     
+protected:
+    
+    NodeID _N;
+    std::vector<NodeID> _adj_array;
+    std::vector<NodeID> _nodes;
+    std::vector<Edge> _edges;
+    std::vector<EdgeWeight> _selfloop;
+    std::vector<ClusterID> _cluster_id;
+    std::vector<IncidentClusterWeight> _incidentClusterWeight;
+    
+    EdgeWeight _total_weight;
+    
+    SparseMap<ClusterID,size_t> _posInIncidentClusterWeightVector;
     
 private:
     FRIEND_TEST(AGraph,DeterminesIncidentClusterWeightsOfAClusterCorrect);
@@ -147,6 +189,7 @@ private:
      */
     std::pair<IncidentClusterWeightIterator,IncidentClusterWeightIterator> incidentClusterWeightOfCluster(const ClusterID cid);
     
+    
     void constructBipartiteGraph(const Hypergraph& hg) {
         NodeID sum_edges = 0;
         
@@ -174,6 +217,7 @@ private:
                 e.targetNode = N + he;
                 e.weight = static_cast<EdgeWeight>(hg.edgeWeight(he))/
                            static_cast<EdgeWeight>(hg.edgeSize(he));
+                _total_weight += e.weight;
                 _edges[_adj_array[hn] + pos++] = e;
             }
         }
@@ -185,21 +229,12 @@ private:
                 e.targetNode = hn;
                 e.weight = static_cast<EdgeWeight>(hg.edgeWeight(he))/
                            static_cast<EdgeWeight>(hg.edgeSize(he));
+                _total_weight += e.weight;
                 _edges[_adj_array[N + he]+pos++] = e;
            }
         }
         
     }
-    
-    
-    NodeID _N;
-    std::vector<NodeID> _adj_array;
-    std::vector<NodeID> _nodes;
-    std::vector<Edge> _edges;
-    std::vector<ClusterID> _cluster_id;
-    std::vector<IncidentClusterWeight> _incidentClusterWeight;
-    
-    SparseMap<ClusterID,size_t> _posInIncidentClusterWeightVector;
     
 };
 

@@ -19,26 +19,20 @@ namespace ds {
     
 #define INVALID -1
 #define EPS 1e-5
-    
-using NodeID = HypernodeID;
-using EdgeWeight = long double;
-using ClusterID = PartitionID;
-using ds::Edge;
-using ds::IncidentClusterWeight;
-    
+   
 class AGraph : public Test {
 public:
     AGraph() : graph(nullptr),
                         hypergraph(7, 4, HyperedgeIndexVector { 0, 2, 6, 9, 12 },
                                    HyperedgeVector { 0, 2, 0, 1, 3, 4, 3, 4, 6, 2, 5, 6 }) { 
-        graph = std::make_shared<ds::Graph>(hypergraph);
+        graph = std::make_shared<Graph>(hypergraph);
     }
                    
-    std::shared_ptr<ds::Graph> graph;
+    std::shared_ptr<Graph> graph;
     Hypergraph hypergraph;
 };
 
-bool bicoloring(NodeID cur, int cur_col, std::vector<int>& col, std::shared_ptr<ds::Graph>& graph) {
+bool bicoloring(NodeID cur, int cur_col, std::vector<int>& col, std::shared_ptr<Graph>& graph) {
     col[cur] = cur_col;
     for(Edge e : graph->adjacentNodes(cur)) {
         NodeID id = e.targetNode;
@@ -84,6 +78,10 @@ TEST_F(AGraph, ContructedFromAHypergraphIsEquivalentToHypergraph) {
                                static_cast<EdgeWeight>(hypergraph.edgeSize(he)));
         }
     }
+}
+
+TEST_F(AGraph, HasCorrectTotalWeight) {
+    ASSERT_LE(std::abs(8.0L-graph->totalWeight()),EPS);
 }
 
 TEST_F(AGraph, HasCorrectInitializedClusterIDs) {
@@ -171,7 +169,7 @@ TEST_F(AGraph, ReturnsCorrectMappingToContractedGraph) {
     graph->setClusterID(5,6);
     graph->setClusterID(10,6);
     auto contractedGraph = graph->contractCluster();
-    ds::Graph graph = std::move(contractedGraph.first);
+    Graph graph(std::move(contractedGraph.first));
     std::vector<NodeID> mappingToOriginalGraph = contractedGraph.second;
     std::vector<NodeID> correctMappingToOriginalGraph = {0,1,0,1,1,2,2,0,1,1,2};
     for(size_t i = 0; i < mappingToOriginalGraph.size(); ++i) {
@@ -189,7 +187,7 @@ TEST_F(AGraph, ReturnCorrectContractedGraph) {
     graph->setClusterID(5,6);
     graph->setClusterID(10,6);
     auto contractedGraph = graph->contractCluster();
-    ds::Graph graph = std::move(contractedGraph.first);
+    Graph graph(std::move(contractedGraph.first));
     std::vector<NodeID> mappingToOriginalGraph = contractedGraph.second;
     
     ASSERT_EQ(3,graph.numNodes());
@@ -223,6 +221,25 @@ TEST_F(AGraph, ReturnCorrectContractedGraph) {
         ASSERT_TRUE(incident_nodes[n_id]);
         ASSERT_LE(std::abs(edge_weight[n_id]-weight),EPS);           
     }
+    
+}
+
+TEST_F(AGraph, HasCorrectSelfloopWeights) {
+    graph->setClusterID(2,0);
+    graph->setClusterID(7,0);
+    graph->setClusterID(1,3);
+    graph->setClusterID(4,3);
+    graph->setClusterID(8,3);
+    graph->setClusterID(9,3);
+    graph->setClusterID(5,6);
+    graph->setClusterID(10,6);
+    auto contractedGraph = graph->contractCluster();
+    Graph graph(std::move(contractedGraph.first));
+    std::vector<NodeID> mappingToOriginalGraph = contractedGraph.second;
+    
+    ASSERT_LE(std::abs(1.0L-graph.selfloopWeight(0)),EPS);
+    ASSERT_LE(std::abs((0.75L+2.0L/3.0L)-graph.selfloopWeight(1)),EPS);
+    ASSERT_LE(std::abs(2.0L/3.0L-graph.selfloopWeight(2)),EPS);
     
 }
 
