@@ -215,13 +215,13 @@ private:
         size_t N = static_cast<size_t>(hg.initialNumNodes());
         
         //Construct adj. array for all hypernode. Amount of edges is equal to the degree of the corresponding hypernode.
-        for(HypernodeID hn : hg.nodes()) {
+        for(HypernodeID hn = 0; hn < hg.initialNumNodes(); ++hn) {
             _adj_array[hn] = sum_edges;
             sum_edges += hg.nodeDegree(hn);
         }
         
         //Construct adj. array for all hyperedges. Amount of edges is equal to the size of the corresponding hyperedge.
-        for(HyperedgeID he : hg.edges()) {
+        for(HyperedgeID he = 0; he < hg.initialNumEdges(); ++he) {
             _adj_array[N + he] = sum_edges;
             sum_edges += hg.edgeSize(he);
         }

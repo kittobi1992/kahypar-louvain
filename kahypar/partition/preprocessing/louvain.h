@@ -139,14 +139,13 @@ private:
         do {
             LOG("######## Starting Louvain-Pass-Iteration #" << ++iterations << " ########");
             node_moves = 0;
-            
             for(NodeID node : g.nodes()) {
                 ClusterID cur_cid = g.clusterID(node);
                 EdgeWeight cur_incident_cluster_weight = 0.0L;
                 ClusterID best_cid = cur_cid;
                 EdgeWeight best_incident_cluster_weight = 0.0L;
                 EdgeWeight best_gain = 0.0L;
-                
+              
                 for(Edge e : g.adjacentNodes(node)) {
                     if(g.clusterID(e.targetNode) == cur_cid && e.targetNode != node) {
                         cur_incident_cluster_weight += e.weight;

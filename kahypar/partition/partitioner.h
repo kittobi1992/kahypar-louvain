@@ -278,6 +278,7 @@ inline Configuration Partitioner::createConfigurationForInitialPartitioning(cons
                                                                             double init_alpha) const {
   Configuration config(original_config);
 
+  
   config.partition.epsilon = init_alpha * original_config.partition.epsilon;
   config.partition.collect_stats = false;
   config.partition.global_search_iterations = 0;
