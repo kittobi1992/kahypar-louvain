@@ -13,6 +13,7 @@
 #include "kahypar/definitions.h"
 #include "kahypar/datastructure/graph.h"
 #include "kahypar/meta/mandatory.h"
+#include "kahypar/partition/configuration.h"
 
 namespace kahypar {
 
@@ -26,22 +27,29 @@ class Louvain {
     
 public:
     
-    Louvain(const Hypergraph& hypergraph) : graph(hypergraph), _num_hypernodes(hypergraph.initialNumNodes()) { }
+    Louvain(const Hypergraph& hypergraph, const Configuration& config) : _graph(hypergraph), _config(config), 
+                                                                         _num_hypernodes(hypergraph.initialNumNodes()) { }
     
     
     void louvain() {
         bool improvement = false;
+        size_t iteration = 0;
         EdgeWeight old_quality = -1.0L;
         EdgeWeight cur_quality = -1.0L;
         
         std::vector<std::vector<NodeID>> mapping_stack;
         std::vector<Graph> graph_stack;
         
-        graph_stack.push_back(graph);
+        graph_stack.push_back(_graph);
         int cur_idx = 0;
+        
+        LOG("Graph Number Nodes: " << _graph.numNodes());
+        LOG("Graph Number Edges: " << _graph.numEdges());
         
         do {
             QualityMeasure quality(graph_stack[cur_idx]);
+             
+            LOG("######## Starting Louvain-Pass #" << ++iteration << " ########");
             
             //Checks if quality of the coarse graph is equal with the quality of next level finer graph
             ASSERT([&]() {
@@ -55,18 +63,29 @@ public:
             }(),"Quality of the contracted graph is not equal with its corresponding uncontracted graph!");
             
             old_quality = cur_quality;
+            HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
             cur_quality = louvain_pass(graph_stack[cur_idx],quality);
-            improvement = cur_quality - old_quality > EPS;
+            HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double> elapsed_seconds = end - start;
+            LOG("Louvain-Pass #" << iteration << " Time: " << elapsed_seconds.count() << "s");
+            improvement = cur_quality - old_quality > _config.preprocessing.min_eps_improvement;
             
-            LOG("Old Quality: " << old_quality << " - New Quality: " << cur_quality);
+            LOG("Louvain-Pass #" << iteration << " improve quality from " << old_quality << " to " << cur_quality);
             
             if(improvement) {
-                ASSERT(cur_quality-old_quality >= EPS, "Quality should be improved during louvain pass!");
                 cur_quality = quality.quality();
+                LOG("Starting Contraction of communities...");
+                start = std::chrono::high_resolution_clock::now();
                 auto contraction = graph_stack[cur_idx++].contractCluster();
+                end = std::chrono::high_resolution_clock::now();
+                elapsed_seconds = end - start;
+                LOG("Contraction Time: " << elapsed_seconds.count() << "s");
                 graph_stack.push_back(std::move(contraction.first));
                 mapping_stack.push_back(std::move(contraction.second));
+                LOG("Current number of communities: " << graph_stack[cur_idx].numNodes());
             }
+            
+            LOG("");
             
         } while(improvement);
         
@@ -78,18 +97,14 @@ public:
             cur_idx--;
         }
         
-        for(NodeID node : graph.nodes()) { 
-            graph.setClusterID(node,graph_stack[0].clusterID(node));    
+        for(NodeID node : _graph.nodes()) { 
+            _graph.setClusterID(node,graph_stack[0].clusterID(node));    
         }    
         
     }
     
-    std::vector<ClusterID> getClusterIDsForAllHypernodes() {
-        std::vector<ClusterID> clusterIDs(_num_hypernodes,0);
-        for(NodeID node : graph.nodes()) {
-            clusterIDs[node] = graph.clusterID(node);
-        }
-        return clusterIDs;
+    ClusterID clusterID(NodeID node) {
+        return _graph.clusterID(node);
     }
 
 private:
@@ -117,11 +132,12 @@ private:
     
     EdgeWeight louvain_pass(Graph& g, QualityMeasure& quality) {
         size_t node_moves = 0;
+        int iterations = 0;
         
         //TODO(heuer): Think about shuffling nodes before louvain pass
 
         do {
-            
+            LOG("######## Starting Louvain-Pass-Iteration #" << ++iterations << " ########");
             node_moves = 0;
             
             for(NodeID node : g.nodes()) {
@@ -173,13 +189,16 @@ private:
                 
             }
             
-        } while(node_moves > 0);
+            LOG("Iteration #" << iterations << ": Moving " << node_moves << " nodes to new communities.");
+            
+        } while(node_moves > 0 && iterations < _config.preprocessing.max_louvain_pass_iterations);
         
 
         return quality.quality();
     }
     
-    Graph graph;
+    Graph _graph;
+    const Configuration& _config;
     HypernodeID _num_hypernodes;
 };
 

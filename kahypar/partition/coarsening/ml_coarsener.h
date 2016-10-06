@@ -82,13 +82,18 @@ class MLCoarsener final : public ICoarsener,
  private:
   void coarsenImpl(const HypernodeID limit) override final {
       
-    Louvain<Modularity> louvain(_hg);
-    HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-    louvain.louvain();
-    //_comm = std::move(louvain.getClusterIDsForAllHypernodes());
-    HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed_seconds = end - start;
-    LOG("Louvain-Time: " << elapsed_seconds.count() << "s");
+    if(_config.preprocessing.use_louvain) {
+        Louvain<Modularity> louvain(_hg,_config);
+        HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+        louvain.louvain();
+        std::vector<ClusterID> comm(_hg.initialNumNodes());
+        for(HypernodeID hn : _hg.nodes()) {
+            _comm[hn] = louvain.clusterID(hn);
+        }
+        HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> elapsed_seconds = end - start;
+        LOG("Louvain-Time: " << elapsed_seconds.count() << "s");
+    }
       
     int pass_nr = 0;
     std::vector<HypernodeID> current_hns;
@@ -161,7 +166,7 @@ class MLCoarsener final : public ICoarsener,
       const HypernodeID tmp_target = it->key;
       const RatingType tmp_rating = it->value;
       DBG(false, "r(" << u << "," << tmp_target << ")=" << tmp_rating);
-      if (acceptRating(tmp_rating, max_rating, target, tmp_target, already_matched)) {
+      if (_comm[u] == _comm[tmp_target] && acceptRating(tmp_rating, max_rating, target, tmp_target, already_matched)) {
         max_rating = tmp_rating;
         target = tmp_target;
       }

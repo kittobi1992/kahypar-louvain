@@ -246,7 +246,19 @@ void processCommandLineInput(Configuration& config, int argc, char* argv[]) {
     po::value<bool>(&config.preprocessing.remove_always_cut_hes)->value_name("<bool>"),
     "Remove hyperedges that will always be cut because"
     " of the weight of their pins \n"
-    "(default: false)");
+    "(default: false)")
+    ("p-use-louvain",
+     po::value<bool>(&config.preprocessing.use_louvain)->value_name("<bool>"),
+     "Using louvain community detection for coarsening\n"
+     "(default: false)")
+    ("p-max-louvain-pass-iterations",
+     po::value<int>(&config.preprocessing.max_louvain_pass_iterations)->value_name("<int>"),
+     "Maximum number of iterations over all nodes of one louvain pass\n"
+     "(default: 10)")
+    ("p-min-eps-improvement",
+     po::value<long double>(&config.preprocessing.min_eps_improvement)->value_name("<long double>"),
+     "Minimum improvement of quality during a louvain pass which leads to further passes\n"
+     "(default: 0.01)");
 
   po::options_description coarsening_options("Coarsening Options", w.ws_col);
   coarsening_options.add_options()

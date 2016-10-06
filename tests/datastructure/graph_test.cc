@@ -116,7 +116,7 @@ TEST_F(AGraph, DeterminesIncidentClusterWeightsCorrectAfterSomeNodesHasChangedTh
     }
 }
 
-TEST_F(AGraph, DeterminesIncidentClusterWeightsOfAClusterCorrect) {
+/*TEST_F(AGraph, DeterminesIncidentClusterWeightsOfAClusterCorrect) {
     graph->setClusterID(2,0);
     graph->setClusterID(7,0);
     graph->setClusterID(1,1);
@@ -157,7 +157,7 @@ TEST_F(AGraph, DeterminesIncidentClusterWeightsOfAClusterCorrect) {
         ASSERT_TRUE(incident_cluster[c_id]);
         ASSERT_LE(std::abs(cluster_weight[c_id]-weight),EPS);
     }
-}
+}*/
 
 TEST_F(AGraph, ReturnsCorrectMappingToContractedGraph) {
     graph->setClusterID(2,0);

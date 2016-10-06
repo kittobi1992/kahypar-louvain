@@ -24,13 +24,15 @@ namespace kahypar {
 class ALouvainAlgorithm : public Test {
 public:
     ALouvainAlgorithm() : louvain(nullptr),
-                        hypergraph(7, 4, HyperedgeIndexVector { 0, 2, 6, 9, 12 },
-                                   HyperedgeVector { 0, 2, 0, 1, 3, 4, 3, 4, 6, 2, 5, 6 }) { 
-        louvain = std::make_shared<Louvain<Modularity>>(hypergraph);
+                          hypergraph(7, 4, HyperedgeIndexVector { 0, 2, 6, 9, 12 },
+                                   HyperedgeVector { 0, 2, 0, 1, 3, 4, 3, 4, 6, 2, 5, 6 }),
+                          config() { 
+        louvain = std::make_shared<Louvain<Modularity>>(hypergraph,config);
     }
                    
     std::shared_ptr<Louvain<Modularity>> louvain;
     Hypergraph hypergraph;
+    Configuration config;
 };
 
 class AModularityMeasure : public Test {

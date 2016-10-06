@@ -35,6 +35,9 @@ struct PreprocessingParameters {
   bool use_min_hash_sparsifier = false;
   bool remove_always_cut_hes = false;
   bool remove_parallel_hes = false;
+  bool use_louvain = false;
+  int max_louvain_pass_iterations = 10;
+  long double min_eps_improvement = 0.01;
 };
 
 inline std::ostream& operator<< (std::ostream& str, const PreprocessingParameters& params) {
@@ -45,6 +48,10 @@ inline std::ostream& operator<< (std::ostream& str, const PreprocessingParameter
   << params.remove_parallel_hes << std::endl;
   str << "  remove HEs that always will be cut: " << std::boolalpha
   << params.remove_always_cut_hes << std::endl;
+  str << "  use louvain community detection:    " << std::boolalpha
+  << params.use_louvain << std::endl;
+  str << "  maximum louvain-pass iterations:    " << params.max_louvain_pass_iterations << std::endl;
+  str << "  minimum quality improvement:        " << params.min_eps_improvement << std::endl;
   return str;
 }
 

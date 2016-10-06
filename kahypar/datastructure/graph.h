@@ -16,6 +16,7 @@
 #include "kahypar/macros.h"
 #include "kahypar/definitions.h"
 #include "kahypar/datastructure/sparse_map.h"
+#include "kahypar/utils/randomize.h"
 
 namespace kahypar {
 namespace ds {
@@ -44,20 +45,22 @@ class Graph {
     
 public:
     Graph(const Hypergraph& hypergraph) : _N(hypergraph.initialNumNodes()+hypergraph.initialNumEdges()),
-                                          _adj_array(_N+1), _nodes(_N), _edges(), 
+                                          _adj_array(_N+1), _nodes(_N), _shuffleNodes(_N), _edges(), 
                                           _selfloop(_N,0.0L), _weightedDegree(_N,0.0L), _cluster_id(_N), 
                                           _incidentClusterWeight(_N,IncidentClusterWeight(0,0.0L)),
                                           _total_weight(0.0L), _posInIncidentClusterWeightVector(_N) {
         std::iota(_nodes.begin(),_nodes.end(),0);
+        std::iota(_shuffleNodes.begin(),_shuffleNodes.end(),0);
         std::iota(_cluster_id.begin(),_cluster_id.end(),0);
         constructBipartiteGraph(hypergraph);
     }
     
     Graph(const std::vector<NodeID>& adj_array, const std::vector<Edge>& edges) 
-                : _N(adj_array.size()-1),_adj_array(adj_array), _nodes(_N), _edges(edges), _selfloop(_N,0.0L),
+                : _N(adj_array.size()-1),_adj_array(adj_array), _nodes(_N), _shuffleNodes(_N), _edges(edges), _selfloop(_N,0.0L),
                   _weightedDegree(_N,0.0L) , _cluster_id(_N), _incidentClusterWeight(_N,IncidentClusterWeight(0,0.0L)),
                   _total_weight(0.0L), _posInIncidentClusterWeightVector(_N) {
         std::iota(_nodes.begin(),_nodes.end(),0);
+        std::iota(_shuffleNodes.begin(),_shuffleNodes.end(),0);
         std::iota(_cluster_id.begin(),_cluster_id.end(),0);
         
         for(NodeID node : nodes()) {
@@ -72,12 +75,12 @@ public:
     }
     
     Graph(Graph&& other) : _N(std::move(other._N)),_adj_array(std::move(other._adj_array)), _nodes(std::move(other._nodes)),
-                           _edges(std::move(other._edges)), _selfloop(std::move(other._selfloop)),
-                           _weightedDegree(std::move(other._weightedDegree)),_cluster_id(std::move(other._cluster_id)), _incidentClusterWeight(std::move(other._incidentClusterWeight)),
-                           _total_weight(std::move(other._total_weight)), 
+                           _shuffleNodes(std::move(other._shuffleNodes)),_edges(std::move(other._edges)), _selfloop(std::move(other._selfloop)),
+                           _weightedDegree(std::move(other._weightedDegree)),_cluster_id(std::move(other._cluster_id)), 
+                           _incidentClusterWeight(std::move(other._incidentClusterWeight)), _total_weight(std::move(other._total_weight)), 
                            _posInIncidentClusterWeightVector(std::move(other._posInIncidentClusterWeightVector)) { }
     
-    Graph(const Graph& other): _N(other._N),_adj_array(other._adj_array), _nodes(other._nodes),
+    Graph(const Graph& other): _N(other._N),_adj_array(other._adj_array), _nodes(other._nodes), _shuffleNodes(other._shuffleNodes),
                                _edges(other._edges), _selfloop(other._selfloop),
                                _weightedDegree(other._weightedDegree),_cluster_id(other._cluster_id), _incidentClusterWeight(other._incidentClusterWeight),
                                _total_weight(other._total_weight), 
@@ -90,6 +93,11 @@ public:
     
     std::pair<NodeIterator,NodeIterator> nodes() const {
         return std::make_pair(_nodes.begin(),_nodes.end());
+    }
+    
+    std::pair<NodeIterator,NodeIterator> randomNodeOrder() {
+        Randomize::instance().shuffleVector(_shuffleNodes, _shuffleNodes.size());
+        return std::make_pair(_shuffleNodes.begin(),_shuffleNodes.end());
     }
     
     std::pair<EdgeIterator,EdgeIterator> adjacentNodes(const NodeID node) const {
@@ -161,6 +169,7 @@ protected:
     NodeID _N;
     std::vector<NodeID> _adj_array;
     std::vector<NodeID> _nodes;
+    std::vector<NodeID> _shuffleNodes;
     std::vector<Edge> _edges;
     std::vector<EdgeWeight> _selfloop;
     std::vector<EdgeWeight> _weightedDegree;
@@ -172,7 +181,7 @@ protected:
     SparseMap<ClusterID,size_t> _posInIncidentClusterWeightVector;
     
 private:
-    FRIEND_TEST(AGraph,DeterminesIncidentClusterWeightsOfAClusterCorrect);
+    //FRIEND_TEST(AGraph,DeterminesIncidentClusterWeightsOfAClusterCorrect);
     
     /*void printGraph() {
         
@@ -197,7 +206,7 @@ private:
      * @param cid ClusterID, which incident clusters should be evaluated
      * @return Iterator to all incident clusters of ClusterID cid
      */
-    std::pair<IncidentClusterWeightIterator,IncidentClusterWeightIterator> incidentClusterWeightOfCluster(const ClusterID cid);
+    std::pair<IncidentClusterWeightIterator,IncidentClusterWeightIterator> incidentClusterWeightOfCluster(std::pair<NodeIterator,NodeIterator>& cluster_range);
     
     
     void constructBipartiteGraph(const Hypergraph& hg) {
@@ -279,25 +288,23 @@ std::pair<IncidentClusterWeightIterator,IncidentClusterWeightIterator> Graph::in
     return std::make_pair(_incidentClusterWeight.begin(),_incidentClusterWeight.begin()+idx);
 }
 
-std::pair<IncidentClusterWeightIterator,IncidentClusterWeightIterator> Graph::incidentClusterWeightOfCluster(const ClusterID cid) {
+std::pair<IncidentClusterWeightIterator,IncidentClusterWeightIterator> Graph::incidentClusterWeightOfCluster(std::pair<NodeIterator,NodeIterator>& cluster_range) {
     
     _posInIncidentClusterWeightVector.clear();
     size_t idx = 0;
     
-    for(NodeID node : nodes()) {
-        if(clusterID(node) == cid) {
-            for(Edge e : adjacentNodes(node)) {
-                NodeID id = e.targetNode;
-                EdgeWeight w = e.weight;
-                ClusterID c_id = clusterID(id);
-                if(_posInIncidentClusterWeightVector.contains(c_id)) {
-                    size_t i = _posInIncidentClusterWeightVector[c_id];
-                    _incidentClusterWeight[i].weight += w;
-                }
-                else {
-                    _incidentClusterWeight[idx] = IncidentClusterWeight(c_id,w);
-                    _posInIncidentClusterWeightVector[c_id] = idx++;
-                }
+    for(NodeID node : cluster_range) {
+        for(Edge e : adjacentNodes(node)) {
+            NodeID id = e.targetNode;
+            EdgeWeight w = e.weight;
+            ClusterID c_id = clusterID(id);
+            if(_posInIncidentClusterWeightVector.contains(c_id)) {
+                size_t i = _posInIncidentClusterWeightVector[c_id];
+                _incidentClusterWeight[i].weight += w;
+            }
+            else {
+                _incidentClusterWeight[idx] = IncidentClusterWeight(c_id,w);
+                _posInIncidentClusterWeightVector[c_id] = idx++;
             }
         }
     }
@@ -318,19 +325,38 @@ std::pair<Graph,std::vector<NodeID>> Graph::contractCluster() {
         setClusterID(node,node2contractedNode[node]);
     }
     
+    std::sort(_shuffleNodes.begin(),_shuffleNodes.end());
+    std::sort(_shuffleNodes.begin(),_shuffleNodes.end(),[&](const NodeID& n1, const NodeID& n2) {
+        return _cluster_id[n1] < _cluster_id[n2]  || (_cluster_id[n1] == _cluster_id[n2] && n1 < n2);
+    });
+    
+    //Add Sentinels
+    _shuffleNodes.push_back(_cluster_id.size());
+    _cluster_id.push_back(new_cid);
+    
     std::vector<NodeID> new_adj_array(new_cid+1,0);
     std::vector<Edge> new_edges;
-    for(ClusterID cid = 0; cid < new_cid; ++cid) {
-        new_adj_array[cid] = new_edges.size();
-        for(auto incidentClusterWeight : incidentClusterWeightOfCluster(cid)) {
-            Edge e;
-            e.targetNode = static_cast<NodeID>(incidentClusterWeight.clusterID);
-            e.weight = incidentClusterWeight.weight;
-            new_edges.push_back(e);
+    size_t start_idx = 0;
+    for(size_t i = 0; i < _N+1; ++i) {
+        if(_cluster_id[_shuffleNodes[start_idx]] != _cluster_id[_shuffleNodes[i]]) {
+            ClusterID cid = _cluster_id[_shuffleNodes[start_idx]];
+            new_adj_array[cid] = new_edges.size();
+            std::pair<NodeIterator,NodeIterator> cluster_range = std::make_pair(_shuffleNodes.begin()+start_idx,
+                                                                                _shuffleNodes.begin()+i+(i == _N-1));
+            for(auto incidentClusterWeight : incidentClusterWeightOfCluster(cluster_range)) {
+                Edge e;
+                e.targetNode = static_cast<NodeID>(incidentClusterWeight.clusterID);
+                e.weight = incidentClusterWeight.weight;
+                new_edges.push_back(e);
+            }
+            start_idx = i;
         }
     }
-    new_adj_array[new_cid] = new_edges.size();
     
+    //Remove Sentinels
+    _shuffleNodes.pop_back(); _cluster_id.pop_back();
+    
+    new_adj_array[new_cid] = new_edges.size();
     Graph graph(new_adj_array,new_edges);
     return std::make_pair(std::move(graph),node2contractedNode);
 }
