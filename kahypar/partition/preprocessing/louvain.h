@@ -29,6 +29,9 @@ public:
     
     Louvain(const Hypergraph& hypergraph, const Configuration& config) : _graph(hypergraph), _config(config), 
                                                                          _num_hypernodes(hypergraph.initialNumNodes()) { }
+                                                                         
+    Louvain(Graph& graph, const Configuration& config) : _graph(graph), _config(config), 
+                                                         _num_hypernodes(graph.numNodes()) { }                                                                         
     
     
     void louvain() {
@@ -60,7 +63,7 @@ public:
                     return false;
                 }
                 return true;
-            }(),"Quality of the contracted graph is not equal with its corresponding uncontracted graph!");
+            }(),"Quality of the contracted graph is not equal with quality of its corresponding uncontracted graph!");
             
             old_quality = cur_quality;
             HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
@@ -183,6 +186,7 @@ private:
                         }
                         return true;
                     }(),"Move did not increase the quality!");
+                    
                     node_moves++;
                 }
                 

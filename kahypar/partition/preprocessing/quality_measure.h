@@ -74,10 +74,10 @@ public:
         
         graph.setClusterID(node,new_cid);
         
-        /*ASSERT([&]() {
+        ASSERT([&]() {
            EdgeWeight q = quality();
            return q < std::numeric_limits<EdgeWeight>::max();
-        }(), "");*/
+        }(), "");
     }
     
     inline EdgeWeight gain(NodeID node, ClusterID cid, EdgeWeight incidentCommWeight) {
@@ -90,7 +90,7 @@ public:
         
         EdgeWeight gain = incidentCommWeight - totc*w_degree/m2;
         
-        /*ASSERT([&]() {
+        ASSERT([&]() {
             EdgeWeight modularity_before = modularity();
             insert(node,cid,incidentCommWeight);
             EdgeWeight modularity_after = modularity();
@@ -102,7 +102,7 @@ public:
                 return false;
             }
             return true;
-        }(), "Gain calculation failed!");*/
+        }(), "Gain calculation failed!");
         
         return gain;
     }
@@ -111,7 +111,6 @@ public:
     EdgeWeight quality() {
         EdgeWeight q = 0.0L;
         EdgeWeight m2 = graph.totalWeight();
-        
         for(NodeID node : graph.nodes()) {
             if(tot[node] > EPS) {
                 q += in[node] - (tot[node]*tot[node])/m2;
@@ -120,7 +119,7 @@ public:
         
         q /= m2;
         
-        //ASSERT(std::abs(q-modularity()) < EPS, "Calculated modularity (q=" << q << ") is not equal with the real modularity (modularity=" << modularity() << ")!");
+        ASSERT(std::abs(q-modularity()) < EPS, "Calculated modularity (q=" << q << ") is not equal with the real modularity (modularity=" << modularity() << ")!");
         
         return q;
     }

@@ -164,6 +164,21 @@ public:
      */
     std::pair<Graph,std::vector<NodeID>> contractCluster();
     
+    void printGraph() {
+        
+        std::cout << "Number Nodes: " << numNodes() << std::endl;
+        std::cout << "Number Edges: " << numEdges() << std::endl;
+        
+        for(NodeID n : nodes()) {
+            std::cout << "Node ID: " << n << "(Comm.: "<<clusterID(n)<<"), Adj. List: ";
+            for(Edge e : adjacentNodes(n)) {
+                std::cout << "(" << e.targetNode << ",w=" << e.weight<<") ";
+            }
+            std::cout << "\n";
+        }
+        
+    }
+    
 protected:
     
     NodeID _N;
@@ -183,20 +198,6 @@ protected:
 private:
     //FRIEND_TEST(AGraph,DeterminesIncidentClusterWeightsOfAClusterCorrect);
     
-    /*void printGraph() {
-        
-        std::cout << "Number Nodes: " << numNodes() << std::endl;
-        std::cout << "Number Edges: " << numEdges() << std::endl;
-        
-        for(NodeID n : nodes()) {
-            std::cout << "Node ID: " << n << ", Adj. List: ";
-            for(Edge e : adjacentNodes(n)) {
-                std::cout << "(" << e.targetNode << ",w=" << e.weight<<") ";
-            }
-            std::cout << "\n";
-        }
-        
-    }*/
     
     /**
      * Creates an iterator to all incident Clusters of ClusterID cid. Iterator points to an 
@@ -292,7 +293,7 @@ std::pair<IncidentClusterWeightIterator,IncidentClusterWeightIterator> Graph::in
     
     _posInIncidentClusterWeightVector.clear();
     size_t idx = 0;
-    
+
     for(NodeID node : cluster_range) {
         for(Edge e : adjacentNodes(node)) {
             NodeID id = e.targetNode;
@@ -308,6 +309,7 @@ std::pair<IncidentClusterWeightIterator,IncidentClusterWeightIterator> Graph::in
             }
         }
     }
+
     
     return std::make_pair(_incidentClusterWeight.begin(),_incidentClusterWeight.begin()+idx);
 }
@@ -324,6 +326,7 @@ std::pair<Graph,std::vector<NodeID>> Graph::contractCluster() {
         node2contractedNode[node] = cluster2Node[cid];
         setClusterID(node,node2contractedNode[node]);
     }
+    
     
     std::sort(_shuffleNodes.begin(),_shuffleNodes.end());
     std::sort(_shuffleNodes.begin(),_shuffleNodes.end(),[&](const NodeID& n1, const NodeID& n2) {
@@ -342,7 +345,7 @@ std::pair<Graph,std::vector<NodeID>> Graph::contractCluster() {
             ClusterID cid = _cluster_id[_shuffleNodes[start_idx]];
             new_adj_array[cid] = new_edges.size();
             std::pair<NodeIterator,NodeIterator> cluster_range = std::make_pair(_shuffleNodes.begin()+start_idx,
-                                                                                _shuffleNodes.begin()+i+(i == _N-1));
+                                                                                _shuffleNodes.begin()+i);
             for(auto incidentClusterWeight : incidentClusterWeightOfCluster(cluster_range)) {
                 Edge e;
                 e.targetNode = static_cast<NodeID>(incidentClusterWeight.clusterID);
@@ -358,6 +361,7 @@ std::pair<Graph,std::vector<NodeID>> Graph::contractCluster() {
     
     new_adj_array[new_cid] = new_edges.size();
     Graph graph(new_adj_array,new_edges);
+    
     return std::make_pair(std::move(graph),node2contractedNode);
 }
         
