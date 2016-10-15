@@ -23,6 +23,7 @@
 #include <limits>
 #include <string>
 #include <vector>
+#include <set>
 
 #include "kahypar/datastructure/fast_reset_flag_array.h"
 #include "kahypar/datastructure/sparse_map.h"
@@ -85,14 +86,18 @@ class MLCoarsener final : public ICoarsener,
     if(_config.preprocessing.use_louvain) {
         Louvain<Modularity> louvain(_hg,_config);
         HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-        louvain.louvain();
-        std::vector<ClusterID> comm(_hg.initialNumNodes());
+        EdgeWeight quality = louvain.louvain();
+        std::set<ClusterID> distinct_comm;
         for(HypernodeID hn : _hg.nodes()) {
             _comm[hn] = louvain.clusterID(hn);
+            distinct_comm.insert(_comm[hn]);
         }
         HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed_seconds = end - start;
         LOG("Louvain-Time: " << elapsed_seconds.count() << "s");
+        Stats::instance().addToTotal(_config,"louvainTime",elapsed_seconds.count());
+        Stats::instance().addToTotal(_config,"communities",distinct_comm.size());
+        Stats::instance().addToTotal(_config,"modularity",quality); 
     }
       
     int pass_nr = 0;

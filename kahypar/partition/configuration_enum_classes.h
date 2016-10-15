@@ -89,6 +89,11 @@ enum class Objective : std::uint8_t {
   km1
 };
 
+enum class LouvainHypergraphEdgeWeight : std::uint8_t {
+    edge_based,
+    uniform
+};
+
 static std::string toString(const Mode& mode) {
   switch (mode) {
     case Mode::recursive_bisection:
@@ -219,6 +224,16 @@ static std::string toString(const GlobalRebalancingMode& state) {
   return std::string("UNDEFINED");
 }
 
+static std::string toString(const LouvainHypergraphEdgeWeight& louvainEdgeType) {
+    switch (louvainEdgeType) {
+        case LouvainHypergraphEdgeWeight::edge_based:
+            return std::string("edge_based");
+        case LouvainHypergraphEdgeWeight::uniform:
+            return std::string("uniform");
+    }
+    return std::string("UNDEFINED");
+}
+
 static RefinementStoppingRule stoppingRuleFromString(const std::string& rule) {
   if (rule == "simple") {
     return RefinementStoppingRule::simple;
@@ -331,4 +346,16 @@ static Mode modeFromString(const std::string& mode) {
   exit(0);
   return Mode::direct_kway;
 }
+
+static LouvainHypergraphEdgeWeight louvainHypergraphEdgeWeightToString(const std::string& louvainWeightType) {
+    if (louvainWeightType == "edge") {
+        return LouvainHypergraphEdgeWeight::edge_based;
+    } else if (louvainWeightType == "uniform") {
+        return LouvainHypergraphEdgeWeight::uniform;
+    }
+    std::cout << "Illegal option:" << louvainWeightType << std::endl;
+    exit(0);
+    return LouvainHypergraphEdgeWeight::edge_based;
+}
+
 }  // namespace kahypar

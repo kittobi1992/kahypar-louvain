@@ -36,6 +36,8 @@ struct PreprocessingParameters {
   bool remove_always_cut_hes = false;
   bool remove_parallel_hes = false;
   bool use_louvain = false;
+  bool ip_louvain = false;
+  LouvainHypergraphEdgeWeight louvainEdgeWeightType = LouvainHypergraphEdgeWeight::edge_based;
   int max_louvain_pass_iterations = 10;
   long double min_eps_improvement = 0.01;
 };
@@ -52,6 +54,7 @@ inline std::ostream& operator<< (std::ostream& str, const PreprocessingParameter
   << params.use_louvain << std::endl;
   str << "  maximum louvain-pass iterations:    " << params.max_louvain_pass_iterations << std::endl;
   str << "  minimum quality improvement:        " << params.min_eps_improvement << std::endl;
+  str << "  louvain edge weight type:           " << toString(params.louvainEdgeWeightType) << std::endl;
   return str;
 }
 

@@ -27,14 +27,15 @@ class Louvain {
     
 public:
     
-    Louvain(const Hypergraph& hypergraph, const Configuration& config) : _graph(hypergraph), _config(config), 
+    Louvain(const Hypergraph& hypergraph, const Configuration& config) : _graph(hypergraph,config.preprocessing.louvainEdgeWeightType), 
+                                                                         _config(config), 
                                                                          _num_hypernodes(hypergraph.initialNumNodes()) { }
                                                                          
     Louvain(Graph& graph, const Configuration& config) : _graph(graph), _config(config), 
                                                          _num_hypernodes(graph.numNodes()) { }                                                                         
     
     
-    void louvain() {
+    EdgeWeight louvain() {
         bool improvement = false;
         size_t iteration = 0;
         EdgeWeight old_quality = -1.0L;
@@ -103,6 +104,8 @@ public:
         for(NodeID node : _graph.nodes()) { 
             _graph.setClusterID(node,graph_stack[0].clusterID(node));    
         }    
+        
+        return cur_quality;
         
     }
     

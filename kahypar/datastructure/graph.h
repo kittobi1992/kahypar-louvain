@@ -17,6 +17,7 @@
 #include "kahypar/definitions.h"
 #include "kahypar/datastructure/sparse_map.h"
 #include "kahypar/utils/randomize.h"
+#include "kahypar/partition/configuration.h"
 
 namespace kahypar {
 namespace ds {
@@ -44,7 +45,8 @@ using IncidentClusterWeightIterator = std::vector<IncidentClusterWeight>::const_
 class Graph {
     
 public:
-    Graph(const Hypergraph& hypergraph) : _N(hypergraph.initialNumNodes()+hypergraph.initialNumEdges()),
+    Graph(const Hypergraph& hypergraph, LouvainHypergraphEdgeWeight edgeType = LouvainHypergraphEdgeWeight::edge_based) 
+                                        : _N(hypergraph.initialNumNodes()+hypergraph.initialNumEdges()),
                                           _adj_array(_N+1), _nodes(_N), _shuffleNodes(_N), _edges(), 
                                           _selfloop(_N,0.0L), _weightedDegree(_N,0.0L), _cluster_id(_N), 
                                           _incidentClusterWeight(_N,IncidentClusterWeight(0,0.0L)),
@@ -52,7 +54,7 @@ public:
         std::iota(_nodes.begin(),_nodes.end(),0);
         std::iota(_shuffleNodes.begin(),_shuffleNodes.end(),0);
         std::iota(_cluster_id.begin(),_cluster_id.end(),0);
-        constructBipartiteGraph(hypergraph);
+        constructBipartiteGraph(hypergraph,edgeType);
     }
     
     Graph(const std::vector<NodeID>& adj_array, const std::vector<Edge>& edges) 
@@ -210,7 +212,7 @@ private:
     std::pair<IncidentClusterWeightIterator,IncidentClusterWeightIterator> incidentClusterWeightOfCluster(std::pair<NodeIterator,NodeIterator>& cluster_range);
     
     
-    void constructBipartiteGraph(const Hypergraph& hg) {
+    void constructBipartiteGraph(const Hypergraph& hg,LouvainHypergraphEdgeWeight edgeType) {
         NodeID sum_edges = 0;
         
         size_t N = static_cast<size_t>(hg.initialNumNodes());
@@ -235,8 +237,13 @@ private:
             for(HyperedgeID he : hg.incidentEdges(hn)) {
                 Edge e;
                 e.targetNode = N + he;
-                e.weight = static_cast<EdgeWeight>(hg.edgeWeight(he))/
-                           static_cast<EdgeWeight>(hg.edgeSize(he));
+                if(edgeType == LouvainHypergraphEdgeWeight::edge_based) {
+                    e.weight = static_cast<EdgeWeight>(hg.edgeWeight(he))/
+                               static_cast<EdgeWeight>(hg.edgeSize(he));
+                }
+                else {
+                    e.weight = 1.0L;
+                }
                 _total_weight += e.weight;
                 _weightedDegree[hn] += e.weight;
                 _edges[_adj_array[hn] + pos++] = e;
@@ -248,8 +255,13 @@ private:
            for(HypernodeID hn : hg.pins(he)) {
                 Edge e;
                 e.targetNode = hn;
-                e.weight = static_cast<EdgeWeight>(hg.edgeWeight(he))/
-                           static_cast<EdgeWeight>(hg.edgeSize(he));
+                if(edgeType == LouvainHypergraphEdgeWeight::edge_based) {
+                    e.weight = static_cast<EdgeWeight>(hg.edgeWeight(he))/
+                    static_cast<EdgeWeight>(hg.edgeSize(he));
+                }
+                else {
+                    e.weight = 1.0L;
+                }
                 _total_weight += e.weight;
                 _weightedDegree[N + he] += e.weight;
                 _edges[_adj_array[N + he]+pos++] = e;

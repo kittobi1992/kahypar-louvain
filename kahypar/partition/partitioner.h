@@ -278,6 +278,7 @@ inline Configuration Partitioner::createConfigurationForInitialPartitioning(cons
                                                                             double init_alpha) const {
   Configuration config(original_config);
 
+  config.preprocessing.ip_louvain = true;
   
   config.partition.epsilon = init_alpha * original_config.partition.epsilon;
   config.partition.collect_stats = false;
@@ -634,11 +635,16 @@ inline Configuration Partitioner::createConfigurationForCurrentBisection(const C
                                                                          const PartitionID current_k,
                                                                          const PartitionID k0,
                                                                          const PartitionID k1) const {
+                                                                             
   Configuration current_config(original_config);
+  
   current_config.partition.k = 2;
   current_config.partition.epsilon = calculateRelaxedEpsilon(original_hypergraph.totalWeight(),
                                                              current_hypergraph.totalWeight(),
                                                              current_k, original_config);
+  
+  current_config.preprocessing.ip_louvain = true;
+  
   ASSERT(current_config.partition.epsilon > 0.0, "start partition already too imbalanced");
   if (current_config.partition.verbose_output) {
     LOG(V(current_config.partition.epsilon));

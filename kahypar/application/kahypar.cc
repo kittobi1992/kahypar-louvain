@@ -258,7 +258,15 @@ void processCommandLineInput(Configuration& config, int argc, char* argv[]) {
     ("p-min-eps-improvement",
      po::value<long double>(&config.preprocessing.min_eps_improvement)->value_name("<long double>"),
      "Minimum improvement of quality during a louvain pass which leads to further passes\n"
-     "(default: 0.01)");
+     "(default: 0.01)")
+    ("p-louvain-edge-type",
+     po::value<std::string>()->value_name("<string>")->notifier(
+        [&](const std::string& louvainEdgeWeightType) {
+            config.preprocessing.louvainEdgeWeightType = kahypar::louvainHypergraphEdgeWeightToString(louvainEdgeWeightType);
+        }),
+        "Louvain edge type: \n"
+        " - (edge) based \n"
+        " - (uniform)");
 
   po::options_description coarsening_options("Coarsening Options", w.ws_col);
   coarsening_options.add_options()
