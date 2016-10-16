@@ -251,6 +251,10 @@ void processCommandLineInput(Configuration& config, int argc, char* argv[]) {
      po::value<bool>(&config.preprocessing.use_louvain)->value_name("<bool>"),
      "Using louvain community detection for coarsening\n"
      "(default: false)")
+    ("p-use-louvain-in-ip",
+     po::value<bool>(&config.preprocessing.use_louvain_in_ip)->value_name("<bool>"),
+     "Using louvain community detection for coarsening during initial partitioning\n"
+     "(default: true)")    
     ("p-max-louvain-pass-iterations",
      po::value<int>(&config.preprocessing.max_louvain_pass_iterations)->value_name("<int>"),
      "Maximum number of iterations over all nodes of one louvain pass\n"
@@ -259,14 +263,14 @@ void processCommandLineInput(Configuration& config, int argc, char* argv[]) {
      po::value<long double>(&config.preprocessing.min_eps_improvement)->value_name("<long double>"),
      "Minimum improvement of quality during a louvain pass which leads to further passes\n"
      "(default: 0.01)")
-    ("p-louvain-edge-type",
-     po::value<std::string>()->value_name("<string>")->notifier(
-        [&](const std::string& louvainEdgeWeightType) {
-            config.preprocessing.louvainEdgeWeightType = kahypar::louvainHypergraphEdgeWeightToString(louvainEdgeWeightType);
-        }),
-        "Louvain edge type: \n"
-        " - (edge) based \n"
-        " - (uniform)");
+    ("p-louvain-use-uniform-edge-weight",
+     po::value<bool>(&config.preprocessing.louvain_use_uniform_edge_weights)->value_name("<bool>"),
+     "If true, louvain transforms hypergraph in graph, where all edges have weight one\n"
+     "(default: false)")
+    ("p-use-multilevel-louvain",
+     po::value<bool>(&config.preprocessing.use_multilevel_louvain)->value_name("<bool>"),
+     "Using louvain community detection after each contraction step\n"
+     "(default: false)");
 
   po::options_description coarsening_options("Coarsening Options", w.ws_col);
   coarsening_options.add_options()

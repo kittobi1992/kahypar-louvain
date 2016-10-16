@@ -82,30 +82,19 @@ class MLCoarsener final : public ICoarsener,
 
  private:
   void coarsenImpl(const HypernodeID limit) override final {
-      
-    if(_config.preprocessing.use_louvain) {
-        Louvain<Modularity> louvain(_hg,_config);
-        HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-        EdgeWeight quality = louvain.louvain();
-        std::set<ClusterID> distinct_comm;
-        for(HypernodeID hn : _hg.nodes()) {
-            _comm[hn] = louvain.clusterID(hn);
-            distinct_comm.insert(_comm[hn]);
-        }
-        HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> elapsed_seconds = end - start;
-        LOG("Louvain-Time: " << elapsed_seconds.count() << "s");
-        Stats::instance().addToTotal(_config,"louvainTime",elapsed_seconds.count());
-        Stats::instance().addToTotal(_config,"communities",distinct_comm.size());
-        Stats::instance().addToTotal(_config,"modularity",quality); 
-    }
-      
+    
+    bool first_louvain_try = true;
     int pass_nr = 0;
     std::vector<HypernodeID> current_hns;
     ds::FastResetFlagArray<> already_matched(_hg.initialNumNodes());
     while (_hg.currentNumNodes() > limit) {
       LOGVAR(pass_nr);
       LOGVAR(_hg.currentNumNodes());
+      
+      if(_config.preprocessing.use_multilevel_louvain || first_louvain_try) {
+        performLouvainCommunityDetection();
+        first_louvain_try = false;
+      }
 
       already_matched.reset();
       current_hns.clear();
@@ -145,6 +134,25 @@ class MLCoarsener final : public ICoarsener,
 
       ++pass_nr;
     }
+  }
+  
+  void performLouvainCommunityDetection() {
+      if(_config.preprocessing.use_louvain) {
+          Louvain<Modularity> louvain(_hg,_config);
+          HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+          EdgeWeight quality = louvain.louvain();
+          std::set<ClusterID> distinct_comm;
+          for(HypernodeID hn : _hg.nodes()) {
+              _comm[hn] = louvain.clusterID(hn);
+              distinct_comm.insert(_comm[hn]);
+          }
+          HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+          std::chrono::duration<double> elapsed_seconds = end - start;
+          LOG("Louvain-Time: " << elapsed_seconds.count() << "s");
+          Stats::instance().addToTotal(_config,"louvainTime",elapsed_seconds.count());
+          Stats::instance().addToTotal(_config,"communities",distinct_comm.size());
+          Stats::instance().addToTotal(_config,"modularity",quality); 
+      }
   }
 
   Rating contractionPartner(const HypernodeID u, const ds::FastResetFlagArray<>& already_matched) {

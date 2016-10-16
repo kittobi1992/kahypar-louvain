@@ -64,9 +64,14 @@ static inline void serialize(const Configuration& config, const Hypergraph& hype
   << config.preprocessing.remove_always_cut_hes
   << " use_louvain=" << std::boolalpha 
   << config.preprocessing.use_louvain
+  << " use_louvain_in_ip=" << std::boolalpha 
+  << config.preprocessing.use_louvain_in_ip
   << " max_louvain_pass_iterations=" << config.preprocessing.max_louvain_pass_iterations
   << " min_louvain_eps_improvement=" << config.preprocessing.min_eps_improvement
-  << " louvain_edge_weight_type=" << toString(config.preprocessing.louvainEdgeWeightType)
+  << " louvain_use_uniform_edge_weights=" << std::boolalpha
+  << config.preprocessing.louvain_use_uniform_edge_weights
+  << " use_multilevel_louvain=" << std::boolalpha
+  << config.preprocessing.use_multilevel_louvain
   << " coarsening_algo=" << toString(config.coarsening.algorithm)
   << " coarsening_max_allowed_weight_multiplier=" << config.coarsening.max_allowed_weight_multiplier
   << " coarsening_contraction_limit_multiplier=" << config.coarsening.contraction_limit_multiplier

@@ -27,7 +27,7 @@ class Louvain {
     
 public:
     
-    Louvain(const Hypergraph& hypergraph, const Configuration& config) : _graph(hypergraph,config.preprocessing.louvainEdgeWeightType), 
+    Louvain(const Hypergraph& hypergraph, const Configuration& config) : _graph(hypergraph,config.preprocessing.louvain_use_uniform_edge_weights), 
                                                                          _config(config), 
                                                                          _num_hypernodes(hypergraph.initialNumNodes()) { }
                                                                          

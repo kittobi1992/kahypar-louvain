@@ -35,26 +35,34 @@ struct PreprocessingParameters {
   bool use_min_hash_sparsifier = false;
   bool remove_always_cut_hes = false;
   bool remove_parallel_hes = false;
+  
+  //Louvain-Configuration
   bool use_louvain = false;
-  bool ip_louvain = false;
-  LouvainHypergraphEdgeWeight louvainEdgeWeightType = LouvainHypergraphEdgeWeight::edge_based;
+  bool use_louvain_in_ip = true;
+  bool use_multilevel_louvain = false;
+  bool louvain_use_uniform_edge_weights = false;
   int max_louvain_pass_iterations = 10;
   long double min_eps_improvement = 0.01;
 };
 
 inline std::ostream& operator<< (std::ostream& str, const PreprocessingParameters& params) {
   str << "Preprocessing Parameters:" << std::endl;
-  str << "  use min hash sparsifier:            " << std::boolalpha
+  str << "  use min hash sparsifier:               " << std::boolalpha
   << params.use_min_hash_sparsifier << std::endl;
-  str << "  remove parallel HEs:                " << std::boolalpha
+  str << "  remove parallel HEs:                   " << std::boolalpha
   << params.remove_parallel_hes << std::endl;
-  str << "  remove HEs that always will be cut: " << std::boolalpha
+  str << "  remove HEs that always will be cut:    " << std::boolalpha
   << params.remove_always_cut_hes << std::endl;
-  str << "  use louvain community detection:    " << std::boolalpha
+  str << "  use louvain community detection:       " << std::boolalpha
   << params.use_louvain << std::endl;
-  str << "  maximum louvain-pass iterations:    " << params.max_louvain_pass_iterations << std::endl;
-  str << "  minimum quality improvement:        " << params.min_eps_improvement << std::endl;
-  str << "  louvain edge weight type:           " << toString(params.louvainEdgeWeightType) << std::endl;
+  str << "  use louvain community detection in IP: " << std::boolalpha
+  << params.use_louvain_in_ip << std::endl;
+  str << "  maximum louvain-pass iterations:       " << params.max_louvain_pass_iterations << std::endl;
+  str << "  minimum quality improvement:           " << params.min_eps_improvement << std::endl;
+  str << "  louvain uses uniform edge weight:      " << std::boolalpha
+  << params.louvain_use_uniform_edge_weights << std::endl;
+  str << "  use multilevel louvain:                " << std::boolalpha
+  << params.use_multilevel_louvain << std::endl;
   return str;
 }
 
