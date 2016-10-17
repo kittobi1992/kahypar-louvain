@@ -109,8 +109,8 @@ public:
         
     }
     
-    ClusterID clusterID(NodeID node) {
-        return _graph.clusterID(node);
+    ClusterID clusterID(const HypernodeID hn) const {
+        return _graph.hypernodeClusterID(hn);
     }
 
 private:

@@ -46,11 +46,12 @@ class Graph {
     
 public:
     Graph(const Hypergraph& hypergraph, bool use_uniform_edge_weight = false) 
-                                        : _N(hypergraph.initialNumNodes()+hypergraph.initialNumEdges()),
+                                        : _N(hypergraph.currentNumNodes()+hypergraph.currentNumEdges()),
                                           _adj_array(_N+1), _nodes(_N), _shuffleNodes(_N), _edges(), 
                                           _selfloop(_N,0.0L), _weightedDegree(_N,0.0L), _cluster_id(_N), 
                                           _incidentClusterWeight(_N,IncidentClusterWeight(0,0.0L)),
-                                          _total_weight(0.0L), _posInIncidentClusterWeightVector(_N) {
+                                          _total_weight(0.0L), _posInIncidentClusterWeightVector(_N),
+                                          _hypernodeMapping(hypergraph.initialNumNodes()+hypergraph.initialNumEdges(),INVALID_NODE) {
         std::iota(_nodes.begin(),_nodes.end(),0);
         std::iota(_shuffleNodes.begin(),_shuffleNodes.end(),0);
         std::iota(_cluster_id.begin(),_cluster_id.end(),0);
@@ -60,10 +61,11 @@ public:
     Graph(const std::vector<NodeID>& adj_array, const std::vector<Edge>& edges) 
                 : _N(adj_array.size()-1),_adj_array(adj_array), _nodes(_N), _shuffleNodes(_N), _edges(edges), _selfloop(_N,0.0L),
                   _weightedDegree(_N,0.0L) , _cluster_id(_N), _incidentClusterWeight(_N,IncidentClusterWeight(0,0.0L)),
-                  _total_weight(0.0L), _posInIncidentClusterWeightVector(_N) {
+                  _total_weight(0.0L), _posInIncidentClusterWeightVector(_N), _hypernodeMapping(_N,INVALID_NODE) {
         std::iota(_nodes.begin(),_nodes.end(),0);
         std::iota(_shuffleNodes.begin(),_shuffleNodes.end(),0);
         std::iota(_cluster_id.begin(),_cluster_id.end(),0);
+        std::iota(_hypernodeMapping.begin(),_hypernodeMapping.end(),0);
         
         for(NodeID node : nodes()) {
             for(Edge e : adjacentNodes(node)) {
@@ -80,13 +82,13 @@ public:
                            _shuffleNodes(std::move(other._shuffleNodes)),_edges(std::move(other._edges)), _selfloop(std::move(other._selfloop)),
                            _weightedDegree(std::move(other._weightedDegree)),_cluster_id(std::move(other._cluster_id)), 
                            _incidentClusterWeight(std::move(other._incidentClusterWeight)), _total_weight(std::move(other._total_weight)), 
-                           _posInIncidentClusterWeightVector(std::move(other._posInIncidentClusterWeightVector)) { }
+                           _posInIncidentClusterWeightVector(std::move(other._posInIncidentClusterWeightVector)),
+                           _hypernodeMapping(std::move(other._hypernodeMapping)) { }
     
     Graph(const Graph& other): _N(other._N),_adj_array(other._adj_array), _nodes(other._nodes), _shuffleNodes(other._shuffleNodes),
                                _edges(other._edges), _selfloop(other._selfloop),
                                _weightedDegree(other._weightedDegree),_cluster_id(other._cluster_id), _incidentClusterWeight(other._incidentClusterWeight),
-                               _total_weight(other._total_weight), 
-                               _posInIncidentClusterWeightVector(_N)  { }
+                               _total_weight(other._total_weight), _posInIncidentClusterWeightVector(_N), _hypernodeMapping(other._hypernodeMapping)  { }
                                
     Graph& operator=(const Graph&) = delete;
     Graph& operator=(Graph&&) = delete;
@@ -132,6 +134,11 @@ public:
     
     EdgeWeight totalWeight() const {
         return _total_weight;
+    }
+    
+    ClusterID hypernodeClusterID(const HypernodeID hn) const {
+        ASSERT(_hypernodeMapping[hn] != INVALID_NODE, "Hypernode " << hn << " isn't part of the current graph!");
+        return _cluster_id[_hypernodeMapping[hn]];
     }
     
     ClusterID clusterID(const NodeID node) const  {
@@ -192,10 +199,9 @@ protected:
     std::vector<EdgeWeight> _weightedDegree;
     std::vector<ClusterID> _cluster_id;
     std::vector<IncidentClusterWeight> _incidentClusterWeight;
-    
     EdgeWeight _total_weight;
-    
     SparseMap<ClusterID,size_t> _posInIncidentClusterWeightVector;
+    std::vector<NodeID> _hypernodeMapping;
     
 private:
     //FRIEND_TEST(AGraph,DeterminesIncidentClusterWeightsOfAClusterCorrect);
@@ -217,20 +223,20 @@ private:
         
         size_t N = static_cast<size_t>(hg.initialNumNodes());
         
+        NodeID cur_node_id = 0;
+        
         //Construct adj. array for all hypernode. Amount of edges is equal to the degree of the corresponding hypernode.
-        for(HypernodeID hn = 0; hn < hg.initialNumNodes(); ++hn) {
-            _adj_array[hn] = sum_edges;
-            if(hg.nodeIsEnabled(hn)) {
-                sum_edges += hg.nodeDegree(hn);
-            }
+        for(HypernodeID hn : hg.nodes()) {
+            _hypernodeMapping[hn] = cur_node_id;
+            _adj_array[cur_node_id++] = sum_edges;
+            sum_edges += hg.nodeDegree(hn);
         }
         
         //Construct adj. array for all hyperedges. Amount of edges is equal to the size of the corresponding hyperedge.
-        for(HyperedgeID he = 0; he < hg.initialNumEdges(); ++he) {
-            _adj_array[N + he] = sum_edges;
-            if(hg.edgeIsEnabled(he)) {
-                sum_edges += hg.edgeSize(he);
-            }
+        for(HyperedgeID he : hg.edges()) {
+            _hypernodeMapping[N+he] = cur_node_id;
+            _adj_array[cur_node_id++] = sum_edges;
+            sum_edges += hg.edgeSize(he);
         }
         
         _adj_array[_N] = sum_edges;
@@ -240,7 +246,7 @@ private:
             size_t pos = 0;
             for(HyperedgeID he : hg.incidentEdges(hn)) {
                 Edge e;
-                e.targetNode = N + he;
+                e.targetNode = _hypernodeMapping[N + he];
                 if(!use_uniform_edge_weight) {
                     e.weight = static_cast<EdgeWeight>(hg.edgeWeight(he))/
                                static_cast<EdgeWeight>(hg.edgeSize(he));
@@ -249,8 +255,8 @@ private:
                     e.weight = 1.0L;
                 }
                 _total_weight += e.weight;
-                _weightedDegree[hn] += e.weight;
-                _edges[_adj_array[hn] + pos++] = e;
+                _weightedDegree[_hypernodeMapping[hn]] += e.weight;
+                _edges[_adj_array[_hypernodeMapping[hn]] + pos++] = e;
             }
         }
         
@@ -258,7 +264,7 @@ private:
            size_t pos = 0;
            for(HypernodeID hn : hg.pins(he)) {
                 Edge e;
-                e.targetNode = hn;
+                e.targetNode = _hypernodeMapping[hn];
                 if(!use_uniform_edge_weight) {
                     e.weight = static_cast<EdgeWeight>(hg.edgeWeight(he))/
                     static_cast<EdgeWeight>(hg.edgeSize(he));
@@ -267,8 +273,8 @@ private:
                     e.weight = 1.0L;
                 }
                 _total_weight += e.weight;
-                _weightedDegree[N + he] += e.weight;
-                _edges[_adj_array[N + he]+pos++] = e;
+                _weightedDegree[_hypernodeMapping[N + he]] += e.weight;
+                _edges[_adj_array[_hypernodeMapping[N + he]]+pos++] = e;
            }
         }
         
