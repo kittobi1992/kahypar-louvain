@@ -83,7 +83,7 @@ class MLCoarsener final : public ICoarsener,
  private:
   void coarsenImpl(const HypernodeID limit) override final {
     
-    bool first_louvain_try = true;
+    bool first_louvain = true;
     int pass_nr = 0;
     std::vector<HypernodeID> current_hns;
     ds::FastResetFlagArray<> already_matched(_hg.initialNumNodes());
@@ -91,9 +91,9 @@ class MLCoarsener final : public ICoarsener,
       LOGVAR(pass_nr);
       LOGVAR(_hg.currentNumNodes());
       
-      if(_config.preprocessing.use_multilevel_louvain || first_louvain_try) {
-        performLouvainCommunityDetection();
-        first_louvain_try = false;
+      if(_config.preprocessing.use_multilevel_louvain || first_louvain) {
+        performLouvainCommunityDetection(first_louvain);
+        first_louvain = false;
       }
 
       already_matched.reset();
@@ -136,7 +136,7 @@ class MLCoarsener final : public ICoarsener,
     }
   }
   
-  void performLouvainCommunityDetection() {
+  void performLouvainCommunityDetection(bool first_louvain) {
       if(_config.preprocessing.use_louvain) {
           Louvain<Modularity> louvain(_hg,_config);
           HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
@@ -150,8 +150,10 @@ class MLCoarsener final : public ICoarsener,
           std::chrono::duration<double> elapsed_seconds = end - start;
           LOG("Louvain-Time: " << elapsed_seconds.count() << "s");
           Stats::instance().addToTotal(_config,"louvainTime",elapsed_seconds.count());
-          Stats::instance().addToTotal(_config,"communities",distinct_comm.size());
-          Stats::instance().addToTotal(_config,"modularity",quality); 
+          if(first_louvain) {
+            Stats::instance().addToTotal(_config,"communities",distinct_comm.size());
+            Stats::instance().addToTotal(_config,"modularity",quality); 
+          }
       }
   }
 
