@@ -157,7 +157,12 @@ class SparseMap final : public SparseMapBase<Key, Value, SparseMap<Key, Value> >
     Base(max_size, initial_value) { }
 
   SparseMap(const SparseMap&) = delete;
-  SparseMap& operator= (const SparseMap&) = delete;
+  SparseMap& operator= (const SparseMap& other) {
+    _sparse = other._sparse;
+    _size = other._size;
+    _dense = other._dense;
+    return *this;
+  }
 
   SparseMap(SparseMap&& other) :
     Base(std::move(other)) { }

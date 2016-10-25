@@ -26,6 +26,7 @@
 #include <cstring>
 #include <limits>
 #include <vector>
+#include <memory>
 
 #include "kahypar/macros.h"
 

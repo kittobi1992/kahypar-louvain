@@ -532,6 +532,8 @@ int main(int argc, char* argv[]) {
   Hypergraph hypergraph(
     kahypar::io::createHypergraphFromFile(config.partition.graph_filename,
                                           config.partition.k));
+  
+
 
   if (config.partition.verbose_output) {
     kahypar::io::printHypergraphInfo(hypergraph,

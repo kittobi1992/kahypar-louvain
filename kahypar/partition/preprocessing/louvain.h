@@ -32,10 +32,13 @@ public:
                                                                          _num_hypernodes(hypergraph.initialNumNodes()) { }
                                                                          
     Louvain(Graph& graph, const Configuration& config) : _graph(graph), _config(config), 
-                                                         _num_hypernodes(graph.numNodes()) { }                                                                         
+                                                         _num_hypernodes(graph.numNodes()) { }    
+    
+    Louvain(Graph&& graph, const Configuration& config) : _graph(std::move(graph)), _config(config), 
+                                                         _num_hypernodes(graph.numNodes()) { }     
     
     
-    EdgeWeight louvain() {
+    EdgeWeight louvain(size_t max_iterations = std::numeric_limits<size_t>::max()) {
         bool improvement = false;
         size_t iteration = 0;
         EdgeWeight old_quality = -1.0L;
@@ -52,6 +55,9 @@ public:
         
         do {
             QualityMeasure quality(graph_stack[cur_idx]);
+            if(iteration == 0) {
+                cur_quality = quality.quality();
+            }
              
             LOG("######## Starting Louvain-Pass #" << ++iteration << " ########");
             
@@ -91,7 +97,7 @@ public:
             
             LOG("");
             
-        } while(improvement);
+        } while(improvement && iteration < max_iterations);
         
         ASSERT((mapping_stack.size() + 1) == graph_stack.size(), "Unequality between graph and mapping stack!");
         while(!mapping_stack.empty()) {
@@ -107,6 +113,11 @@ public:
         
         return cur_quality;
         
+    }
+    
+
+    Graph getGraph() const {
+        return _graph;
     }
     
     ClusterID clusterID(const HypernodeID hn) const {

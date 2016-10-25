@@ -27,11 +27,15 @@
 #include <unordered_map>
 #include <vector>
 
+#include "kahypar/datastructure/fast_reset_flag_array.h"
+#include "kahypar/datastructure/sparse_map.h"
 #include "kahypar/definitions.h"
 
 namespace kahypar {
 namespace io {
 using Mapping = std::unordered_map<HypernodeID, HypernodeID>;
+using ds::FastResetFlagArray;
+using ds::SparseMap;
 
 static inline void readHGRHeader(std::ifstream& file, HyperedgeID& num_hyperedges,
                                  HypernodeID& num_hypernodes, HypergraphType& hypergraph_type) {
@@ -340,5 +344,55 @@ static inline void writePartitionFile(const Hypergraph& hypergraph, const std::s
   }
   out_stream.close();
 }
+
+static inline void calculateHyperedgeAffinity(const Hypergraph& hypergraph, const std::string& filename) {
+    std::ofstream out(filename.c_str());
+    
+    FastResetFlagArray<> node_union(hypergraph.initialNumNodes());
+    FastResetFlagArray<> node_intersect(hypergraph.initialNumNodes());
+    
+    for(HypernodeID hn : hypergraph.nodes()) {
+        
+        size_t numIncidentEdges = 0;
+        size_t numAdjacentPins = 0;
+        size_t sumIntersect = 0;
+        node_union.reset();
+        
+        for(HyperedgeID e1 : hypergraph.incidentEdges(hn)) {
+            numIncidentEdges++;
+            
+            node_intersect.reset();
+            for(HypernodeID pin : hypergraph.pins(e1)) {
+                node_intersect.set(pin,true);
+                if(!node_union[pin]) {
+                    node_union.set(pin,true);
+                    numAdjacentPins++;            
+                }
+            }
+            
+            for(HyperedgeID e2 : hypergraph.incidentEdges(hn)) {
+                if(e1 < e2) {
+                    for(HypernodeID pin : hypergraph.pins(e2)) {
+                        if(node_intersect[pin]) {
+                            sumIntersect++;
+                        }
+                    }
+                }
+            }
+        }
+        double dNumIncidentEdges = static_cast<double>(numIncidentEdges);
+        if(numAdjacentPins == 0 || numIncidentEdges == 1) {
+            out << "1.0" << std::endl;
+        } 
+        else {
+            double di = 2.0*static_cast<double>(sumIntersect)
+            /(static_cast<double>(numAdjacentPins)*dNumIncidentEdges*(dNumIncidentEdges-1));
+            out << di << std::endl;
+        }
+    }
+    
+    out.close();
+}
+
 }  // namespace io
 }  // namespace kahypar

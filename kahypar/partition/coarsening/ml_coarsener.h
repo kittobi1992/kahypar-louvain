@@ -70,7 +70,7 @@ class MLCoarsener final : public ICoarsener,
   MLCoarsener(Hypergraph& hypergraph, const Configuration& config,
               const HypernodeWeight weight_of_heaviest_node) :
     Base(hypergraph, config, weight_of_heaviest_node),
-    _tmp_ratings(_hg.initialNumNodes()), _comm(_hg.initialNumNodes(),0) { }
+    _tmp_ratings(_hg.initialNumNodes()), _comm(_hg.initialNumNodes(),0), _lastGraph(hypergraph) { }
 
   virtual ~MLCoarsener() { }
 
@@ -90,6 +90,7 @@ class MLCoarsener final : public ICoarsener,
     while (_hg.currentNumNodes() > limit) {
       LOGVAR(pass_nr);
       LOGVAR(_hg.currentNumNodes());
+      LOGVAR(_hg.currentNumEdges());
       
       if(_config.preprocessing.use_multilevel_louvain || first_louvain) {
         performLouvainCommunityDetection(first_louvain);
@@ -108,7 +109,6 @@ class MLCoarsener final : public ICoarsener,
       //           [&](const HypernodeID l, const HypernodeID r) {
       //             return _hg.nodeDegree(l) < _hg.nodeDegree(r);
       //           });
-
       for (const HypernodeID hn : current_hns) {
         if (_hg.nodeIsEnabled(hn)) {
           const Rating rating = contractionPartner(hn, already_matched);
@@ -116,11 +116,25 @@ class MLCoarsener final : public ICoarsener,
           if (rating.target != kInvalidTarget) {
             already_matched.set(hn, true);
             already_matched.set(rating.target, true);
-            // if (_hg.nodeDegree(hn) > _hg.nodeDegree(rating.target)) {
+            
             performContraction(hn, rating.target);
-            // } else {
-            //   contract(rating.target, hn);
-            // }
+            if(_config.preprocessing.use_multilevel_louvain) {
+                _lastGraph.contractHypernodes(hn,rating.target);
+                size_t N = _hg.initialNumNodes();
+                int one_pin_hes_begin = _history.back().one_pin_hes_begin;
+                int one_pin_hes_size = _history.back().one_pin_hes_size;
+                for(int i = one_pin_hes_begin; i < one_pin_hes_begin+one_pin_hes_size; ++i) {
+                    _lastGraph.contractHypernodes(hn,N+_hypergraph_pruner.removedSingleNodeHyperedges()[i]);
+                }
+                
+                int parallel_hes_begin = _history.back().parallel_hes_begin;
+                int parallel_hes_size = _history.back().parallel_hes_size;
+                for(int i = parallel_hes_begin; i < parallel_hes_begin+parallel_hes_size; ++i) {
+                    _lastGraph.contractHypernodes(N+_hypergraph_pruner.removedParallelHyperedges()[i].representative_id,
+                                                  N+_hypergraph_pruner.removedParallelHyperedges()[i].removed_id);
+                }
+            }
+            
           }
 
           if (_hg.currentNumNodes() <= limit) {
@@ -134,17 +148,42 @@ class MLCoarsener final : public ICoarsener,
 
       ++pass_nr;
     }
+    //abort();
   }
   
   void performLouvainCommunityDetection(bool first_louvain) {
       if(_config.preprocessing.use_louvain) {
-          Louvain<Modularity> louvain(_hg,_config);
           HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-          EdgeWeight quality = louvain.louvain();
+          EdgeWeight quality = 0.0L;
           std::set<ClusterID> distinct_comm;
-          for(HypernodeID hn : _hg.nodes()) {
-              _comm[hn] = louvain.clusterID(hn);
-              distinct_comm.insert(_comm[hn]);
+          if(_config.preprocessing.use_multilevel_louvain) {
+              if(first_louvain) {
+                  Louvain<Modularity> louvain(_hg,_config);
+                  quality = louvain.louvain(1);
+                  _lastGraph = louvain.getGraph();
+                  for(HypernodeID hn : _hg.nodes()) {
+                      _comm[hn] = louvain.clusterID(hn);
+                      distinct_comm.insert(_comm[hn]);
+                  }
+              }
+              else {
+                  Louvain<Modularity> louvain(std::move(_lastGraph.contractGraphWithUnionFind()),_config);
+
+                  quality = louvain.louvain(1);
+                  _lastGraph = louvain.getGraph();
+                  for(HypernodeID hn : _hg.nodes()) {
+                      _comm[hn] = louvain.clusterID(hn);
+                      distinct_comm.insert(_comm[hn]);
+                  }
+              }
+          }
+          else {
+              Louvain<Modularity> louvain(_hg,_config);
+              quality = louvain.louvain();   
+              for(HypernodeID hn : _hg.nodes()) {
+                  _comm[hn] = louvain.clusterID(hn);
+                  distinct_comm.insert(_comm[hn]);
+              }
           }
           HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
           std::chrono::duration<double> elapsed_seconds = end - start;
@@ -233,7 +272,9 @@ class MLCoarsener final : public ICoarsener,
   using Base::_hg;
   using Base::_config;
   using Base::_history;
+  using Base::_hypergraph_pruner;
   ds::SparseMap<HypernodeID, RatingType> _tmp_ratings;
   std::vector<ClusterID> _comm;
+  Graph _lastGraph;
 };
 }  // namespace kahypar
