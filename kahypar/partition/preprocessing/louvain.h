@@ -78,7 +78,7 @@ public:
             HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double> elapsed_seconds = end - start;
             LOG("Louvain-Pass #" << iteration << " Time: " << elapsed_seconds.count() << "s");
-            improvement = cur_quality - old_quality > _config.preprocessing.min_eps_improvement;
+            improvement = cur_quality - old_quality > _config.preprocessing.min_eps_improvement || max_iterations == 2;
             
             LOG("Louvain-Pass #" << iteration << " improve quality from " << old_quality << " to " << cur_quality);
             
@@ -116,7 +116,7 @@ public:
     }
     
 
-    Graph getGraph() const {
+    Graph getGraph() {
         return _graph;
     }
     

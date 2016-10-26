@@ -148,7 +148,7 @@ class MLCoarsener final : public ICoarsener,
 
       ++pass_nr;
     }
-    //abort();
+    abort();
   }
   
   void performLouvainCommunityDetection(bool first_louvain) {
@@ -168,8 +168,7 @@ class MLCoarsener final : public ICoarsener,
               }
               else {
                   Louvain<Modularity> louvain(std::move(_lastGraph.contractGraphWithUnionFind()),_config);
-
-                  quality = louvain.louvain(1);
+                  quality = louvain.louvain(2);
                   _lastGraph = louvain.getGraph();
                   for(HypernodeID hn : _hg.nodes()) {
                       _comm[hn] = louvain.clusterID(hn);

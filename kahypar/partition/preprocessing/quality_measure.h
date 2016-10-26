@@ -18,7 +18,7 @@ namespace kahypar {
 
 using ds::Edge;
 using ds::FastResetFlagArray;
-#define EPS 1e-6
+#define EPS 1e-5
 
 class QualityMeasure {
 

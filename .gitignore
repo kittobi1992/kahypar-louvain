@@ -17,6 +17,7 @@ debug/*
 debug152/*
 profile/*
 rprofile/*
+relwithdebug/*
 benchmark/build/*
 benchmark/results/notebooks/.ipynb_checkpoints/*
 benchmark/results/notebooks/*/

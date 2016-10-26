@@ -112,6 +112,7 @@ class SparseMapBase {
  protected:
   explicit SparseMapBase(const size_t max_size,
                          const Value initial_value = 0) :
+    _max_size(max_size),
     _size(0),
     _sparse(nullptr),
     _dense(nullptr) {
@@ -131,7 +132,7 @@ class SparseMapBase {
   }
 
   SparseMapBase(SparseMapBase&& other) :
-    _size(other._size),
+    _size(0),
     _sparse(other._sparse),
     _dense(other._dense) {
     other._size = 0;
@@ -139,6 +140,7 @@ class SparseMapBase {
     other._dense = nullptr;
   }
 
+  int _max_size;
   size_t _size;
   size_t* _sparse;
   MapElement* _dense;
@@ -156,17 +158,30 @@ class SparseMap final : public SparseMapBase<Key, Value, SparseMap<Key, Value> >
                      const Value initial_value = 0) :
     Base(max_size, initial_value) { }
 
-  SparseMap(const SparseMap&) = delete;
-  SparseMap& operator= (const SparseMap& other) {
-    _sparse = other._sparse;
-    _size = other._size;
-    _dense = other._dense;
-    return *this;
-  }
+  SparseMap(const SparseMap& other) = delete;
+  
+  SparseMap& operator=(SparseMap& other) {
+      _sparse = std::move(other._sparse);
+      _size = 0;
+      _dense = std::move(other._dense);
+      other._size = 0;
+      other._sparse = nullptr;
+      other._dense = nullptr;
+      return *this;
+  };
 
   SparseMap(SparseMap&& other) :
     Base(std::move(other)) { }
-  SparseMap& operator= (SparseMap&&) = delete;
+    
+  SparseMap& operator=(SparseMap&& other) {
+      _sparse = std::move(other._sparse);
+      _size = 0;
+      _dense = std::move(other._dense);
+      other._size = 0;
+      other._sparse = nullptr;
+      other._dense = nullptr;
+      return *this;
+  };
 
   void remove(const Key key) {
     const size_t index = _sparse[key];
