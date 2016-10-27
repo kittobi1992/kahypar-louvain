@@ -49,11 +49,13 @@ public:
         
         graph_stack.push_back(_graph);
         int cur_idx = 0;
-        
-        LOG("Graph Number Nodes: " << _graph.numNodes());
-        LOG("Graph Number Edges: " << _graph.numEdges());
+
         
         do {
+            
+            
+            LOG("Graph Number Nodes: " << graph_stack[cur_idx].numNodes());
+            LOG("Graph Number Edges: " << graph_stack[cur_idx].numEdges());
             QualityMeasure quality(graph_stack[cur_idx]);
             if(iteration == 0) {
                 cur_quality = quality.quality();

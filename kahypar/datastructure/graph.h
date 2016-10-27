@@ -30,10 +30,8 @@ class UnionFind {
 public:
     std::vector<NodeID> parent;
         
-    UnionFind(size_t n) {
-        parent.assign(n,0);
-        for(NodeID i = 0; i < n; ++i)
-            parent[i] = i;
+    UnionFind(size_t n) : parent(n) {
+        std::iota(parent.begin(),parent.end(),0);
     }
         
     NodeID findSet(NodeID n) { // Pfadkompression
@@ -48,6 +46,11 @@ public:
     void unionSets(NodeID a, NodeID b) { // Diese Funktion aufrufen.
         if (findSet(a) != findSet(b)) linkSets(findSet(a), findSet(b));
     }
+    
+    void reset() {
+        std::iota(parent.begin(),parent.end(),0);   
+    }
+    
 };    
 
 struct Edge {
@@ -249,12 +252,35 @@ public:
     }
     
     void contractHypernodes(const HypernodeID u, const HypernodeID v) {
-        ASSERT(_hypernodeMapping[u] != INVALID_NODE && _hypernodeMapping[v] != INVALID_NODE, "Hypernode " << u << " or " << v << " isn't part of the current graph!");
+        //ASSERT(_hypernodeMapping[u] != INVALID_NODE && _hypernodeMapping[v] != INVALID_NODE, "Hypernode " << u << " or " << v << " isn't part of the current graph!");
         NodeID u_id = _hypernodeMapping[u];
         NodeID v_id = _hypernodeMapping[v];
-        if(clusterID(u_id) == clusterID(v_id)) {
+        if(u_id == INVALID_NODE || v_id == INVALID_NODE) return;
+        if(u_id != v_id && clusterID(u_id) == clusterID(v_id)) {
             _unionFind.unionSets(u_id,v_id);
         }
+    }
+    
+    Graph contractHyperedgeCluster(NodeID he_begin) {
+        _unionFind.reset();
+        std::sort(_shuffleNodes.begin(),_shuffleNodes.end());
+        std::sort(_shuffleNodes.begin()+he_begin,_shuffleNodes.end(),[&](const NodeID n1, const NodeID n2) {
+            return clusterID(n1) < clusterID(n2);
+        });
+        NodeID cur_node = _shuffleNodes[he_begin];
+        ClusterID cur_cid = clusterID(cur_node);
+        for(NodeID n = he_begin+1; n < _shuffleNodes.size(); ++n) {
+            NodeID node = _shuffleNodes[n];
+            ClusterID cid = clusterID(node);
+            if(cur_cid == cid) {
+                _unionFind.unionSets(cur_node,node);
+            }
+            else {
+                cur_node = node;
+                cur_cid = cid;
+            }
+        }
+        return contractGraphWithUnionFind();
     }
     
     Graph contractGraphWithUnionFind() {

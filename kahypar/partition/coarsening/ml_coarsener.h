@@ -148,7 +148,7 @@ class MLCoarsener final : public ICoarsener,
 
       ++pass_nr;
     }
-    abort();
+    //abort();
   }
   
   void performLouvainCommunityDetection(bool first_louvain) {
