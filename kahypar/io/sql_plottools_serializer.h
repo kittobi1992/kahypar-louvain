@@ -72,6 +72,8 @@ static inline void serialize(const Configuration& config, const Hypergraph& hype
   << config.preprocessing.louvain_use_uniform_edge_weights
   << " use_multilevel_louvain=" << std::boolalpha
   << config.preprocessing.use_multilevel_louvain
+  << " louvain_contract_graph_like_hg=" << std::boolalpha
+  << config.preprocessing.louvain_contract_graph_like_hg
   << " coarsening_algo=" << toString(config.coarsening.algorithm)
   << " coarsening_max_allowed_weight_multiplier=" << config.coarsening.max_allowed_weight_multiplier
   << " coarsening_contraction_limit_multiplier=" << config.coarsening.contraction_limit_multiplier

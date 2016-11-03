@@ -270,6 +270,10 @@ void processCommandLineInput(Configuration& config, int argc, char* argv[]) {
     ("p-use-multilevel-louvain",
      po::value<bool>(&config.preprocessing.use_multilevel_louvain)->value_name("<bool>"),
      "Using louvain community detection after each contraction step\n"
+     "(default: false)")
+    ("p-louvain-contract-graph-like-hg",
+     po::value<bool>(&config.preprocessing.louvain_contract_graph_like_hg)->value_name("<bool>"),
+     "Louvain contracts graph equivalent to hypergraph contraction, if true and multilevel louvain is activated\n"
      "(default: false)");
 
   po::options_description coarsening_options("Coarsening Options", w.ws_col);

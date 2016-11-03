@@ -28,14 +28,12 @@ class Louvain {
 public:
     
     Louvain(const Hypergraph& hypergraph, const Configuration& config) : _graph(hypergraph,config.preprocessing.louvain_use_uniform_edge_weights), 
-                                                                         _config(config), 
-                                                                         _num_hypernodes(hypergraph.initialNumNodes()) { }
+                                                                         _config(config) { }
                                                                          
-    Louvain(Graph& graph, const Configuration& config) : _graph(graph), _config(config), 
-                                                         _num_hypernodes(graph.numNodes()) { }    
+    Louvain(Graph& graph, const Configuration& config) : _graph(graph), _config(config) { }    
     
-    Louvain(Graph&& graph, const Configuration& config) : _graph(std::move(graph)), _config(config), 
-                                                         _num_hypernodes(graph.numNodes()) { }     
+    Louvain(Graph&& graph, const Configuration& config) : _graph(std::move(graph)), _config(config) { } 
+    
     
     
     EdgeWeight louvain(size_t max_iterations = std::numeric_limits<size_t>::max()) {
@@ -218,7 +216,6 @@ private:
     
     Graph _graph;
     const Configuration& _config;
-    HypernodeID _num_hypernodes;
 };
 
 }  // namespace kahypar

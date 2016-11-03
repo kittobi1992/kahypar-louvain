@@ -167,12 +167,23 @@ class MLCoarsener final : public ICoarsener,
                   }
               }
               else {
-                  Louvain<Modularity> louvain(std::move(_lastGraph.contractGraphWithUnionFind()),_config);
-                  quality = louvain.louvain(2);
-                  _lastGraph = louvain.getGraph();
-                  for(HypernodeID hn : _hg.nodes()) {
-                      _comm[hn] = louvain.clusterID(hn);
-                      distinct_comm.insert(_comm[hn]);
+                  if(_config.preprocessing.louvain_contract_graph_like_hg) {
+                      Louvain<Modularity> louvain(std::move(_lastGraph.contractGraphWithUnionFind()),_config);
+                      quality = louvain.louvain(2);
+                      _lastGraph = louvain.getGraph();
+                      for(HypernodeID hn : _hg.nodes()) {
+                          _comm[hn] = louvain.clusterID(hn);
+                          distinct_comm.insert(_comm[hn]);
+                      }    
+                  }
+                  else {
+                      Louvain<Modularity> louvain(std::move(_lastGraph.contractCluster().first),_config);
+                      quality = louvain.louvain(1);
+                      _lastGraph = louvain.getGraph();
+                      for(HypernodeID hn : _hg.nodes()) {
+                          _comm[hn] = louvain.clusterID(hn);
+                          distinct_comm.insert(_comm[hn]);
+                      }
                   }
               }
           }

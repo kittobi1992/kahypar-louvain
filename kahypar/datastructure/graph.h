@@ -567,6 +567,16 @@ std::pair<Graph,std::vector<NodeID>> Graph::contractCluster() {
         setClusterID(node,node2contractedNode[node]);
     }
     
+    std::vector<NodeID> hypernodeMapping(_hypernodeMapping.size(),INVALID_NODE);
+    for(HypernodeID hn = 0; hn < _hypernodeMapping.size(); ++hn) {
+        if(_hypernodeMapping[hn] != INVALID_NODE) {
+            hypernodeMapping[hn] = node2contractedNode[_hypernodeMapping[hn]];
+        }
+    }
+    
+    std::vector<ClusterID> clusterID(new_cid);
+    std::iota(clusterID.begin(),clusterID.end(),0);
+    
     
     std::sort(_shuffleNodes.begin(),_shuffleNodes.end());
     std::sort(_shuffleNodes.begin(),_shuffleNodes.end(),[&](const NodeID& n1, const NodeID& n2) {
@@ -600,7 +610,7 @@ std::pair<Graph,std::vector<NodeID>> Graph::contractCluster() {
     _shuffleNodes.pop_back(); _cluster_id.pop_back();
     
     new_adj_array[new_cid] = new_edges.size();
-    Graph graph(new_adj_array,new_edges);
+    Graph graph(new_adj_array,new_edges,hypernodeMapping,clusterID);
     
     return std::make_pair(std::move(graph),node2contractedNode);
 }
