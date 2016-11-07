@@ -28,19 +28,37 @@ class Louvain {
 public:
     
     Louvain(const Hypergraph& hypergraph, const Configuration& config) : _graph(hypergraph,config.preprocessing.louvain_use_uniform_edge_weights), 
-                                                                         _config(config) { }
+                                                                         _config(config), _first_louvain_call(true) { }
                                                                          
-    Louvain(Graph& graph, const Configuration& config) : _graph(graph), _config(config) { }    
+    Louvain(Graph& graph, const Configuration& config) : _graph(graph), _config(config), _first_louvain_call(true) { }    
     
-    Louvain(Graph&& graph, const Configuration& config) : _graph(std::move(graph)), _config(config) { } 
+    Louvain(Graph&& graph, const Configuration& config) : _graph(std::move(graph)), _config(config), _first_louvain_call(true) { } 
     
     
     
-    EdgeWeight louvain(size_t max_iterations = std::numeric_limits<size_t>::max()) {
+    EdgeWeight louvain() {
         bool improvement = false;
         size_t iteration = 0;
         EdgeWeight old_quality = -1.0L;
         EdgeWeight cur_quality = -1.0L;
+        
+        size_t max_iterations = std::numeric_limits<size_t>::max();
+        
+        if(_config.preprocessing.use_multilevel_louvain) {
+            if(_first_louvain_call) {
+                max_iterations = 1;
+            }
+            else {
+                if(_config.preprocessing.louvain_contract_graph_like_hg) {
+                    max_iterations = 2;
+                    _graph = _graph.contractGraphWithUnionFind();
+                }
+                else {
+                    max_iterations = 1;
+                    _graph = _graph.contractCluster().first;
+                }
+            }
+        }
         
         std::vector<std::vector<NodeID>> mapping_stack;
         std::vector<Graph> graph_stack;
@@ -48,9 +66,7 @@ public:
         graph_stack.push_back(_graph);
         int cur_idx = 0;
 
-        
         do {
-            
             
             LOG("Graph Number Nodes: " << graph_stack[cur_idx].numNodes());
             LOG("Graph Number Edges: " << graph_stack[cur_idx].numEdges());
@@ -111,13 +127,22 @@ public:
             _graph.setClusterID(node,graph_stack[0].clusterID(node));    
         }    
         
+        _first_louvain_call = false;
+        
         return cur_quality;
         
     }
     
-
+    bool wasAlreadyExecuted() const {
+        return !_first_louvain_call;
+    }
+    
     Graph getGraph() {
         return _graph;
+    }
+    
+    ClusterID contractHypernodes(const HypernodeID hn1, const HypernodeID hn2) {
+        _graph.contractHypernodes(hn1,hn2);
     }
     
     ClusterID clusterID(const HypernodeID hn) const {
@@ -216,6 +241,7 @@ private:
     
     Graph _graph;
     const Configuration& _config;
+    bool _first_louvain_call;
 };
 
 }  // namespace kahypar

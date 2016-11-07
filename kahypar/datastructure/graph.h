@@ -261,28 +261,6 @@ public:
         }
     }
     
-    Graph contractHyperedgeCluster(NodeID he_begin) {
-        _unionFind.reset();
-        std::sort(_shuffleNodes.begin(),_shuffleNodes.end());
-        std::sort(_shuffleNodes.begin()+he_begin,_shuffleNodes.end(),[&](const NodeID n1, const NodeID n2) {
-            return clusterID(n1) < clusterID(n2);
-        });
-        NodeID cur_node = _shuffleNodes[he_begin];
-        ClusterID cur_cid = clusterID(cur_node);
-        for(NodeID n = he_begin+1; n < _shuffleNodes.size(); ++n) {
-            NodeID node = _shuffleNodes[n];
-            ClusterID cid = clusterID(node);
-            if(cur_cid == cid) {
-                _unionFind.unionSets(cur_node,node);
-            }
-            else {
-                cur_node = node;
-                cur_cid = cid;
-            }
-        }
-        return contractGraphWithUnionFind();
-    }
-    
     Graph contractGraphWithUnionFind() {
         
         std::vector<std::vector<Edge>> adj_list(_N,std::vector<Edge>());
@@ -310,6 +288,7 @@ public:
                 hypernodeMapping[hn] = mapping[_hypernodeMapping[hn]];
             }
         }
+    
         
         std::vector<NodeID> adj_array;
         std::vector<Edge> edges;
@@ -573,6 +552,19 @@ std::pair<Graph,std::vector<NodeID>> Graph::contractCluster() {
             hypernodeMapping[hn] = node2contractedNode[_hypernodeMapping[hn]];
         }
     }
+    
+    ASSERT([&]() {
+        for(HypernodeID hn = 0; hn < _hypernodeMapping.size(); ++hn) {
+            if(_hypernodeMapping[hn] != INVALID_NODE && clusterID(_hypernodeMapping[hn]) != hypernodeMapping[hn]) {
+                LOGVAR(clusterID(_hypernodeMapping[hn]));
+                LOGVAR(hypernodeMapping[hn]);
+                return false;
+            }
+        } 
+        return true;
+    }(), "Hypernodes are not correctly mapped to contracted graph");
+    
+    
     
     std::vector<ClusterID> clusterID(new_cid);
     std::iota(clusterID.begin(),clusterID.end(),0);
