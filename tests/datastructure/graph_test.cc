@@ -22,13 +22,15 @@ namespace ds {
    
 class AGraph : public Test {
 public:
-    AGraph() : graph(nullptr),
+    AGraph() : graph(nullptr), config(),
                         hypergraph(7, 4, HyperedgeIndexVector { 0, 2, 6, 9, 12 },
                                    HyperedgeVector { 0, 2, 0, 1, 3, 4, 3, 4, 6, 2, 5, 6 }) { 
-        graph = std::make_shared<Graph>(hypergraph);
+                            
+        graph = std::make_shared<Graph>(hypergraph,config);
     }
                    
     std::shared_ptr<Graph> graph;
+    Configuration config;
     Hypergraph hypergraph;
 };
 

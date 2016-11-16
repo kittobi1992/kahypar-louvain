@@ -42,6 +42,7 @@ struct PreprocessingParameters {
   bool use_multilevel_louvain = false;
   bool louvain_contract_graph_like_hg = false;
   bool louvain_use_uniform_edge_weights = false;
+  bool louvain_use_bipartite_graph = true;
   int max_louvain_pass_iterations = 10;
   long double min_eps_improvement = 0.01;
 };
@@ -58,6 +59,8 @@ inline std::ostream& operator<< (std::ostream& str, const PreprocessingParameter
   << params.use_louvain << std::endl;
   str << "  use louvain community detection in IP: " << std::boolalpha
   << params.use_louvain_in_ip << std::endl;
+    str << "  use bipartite graph representation:  " << std::boolalpha
+  << params.louvain_use_bipartite_graph << std::endl;
   str << "  maximum louvain-pass iterations:       " << params.max_louvain_pass_iterations << std::endl;
   str << "  minimum quality improvement:           " << params.min_eps_improvement << std::endl;
   str << "  louvain uses uniform edge weight:      " << std::boolalpha

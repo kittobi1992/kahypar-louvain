@@ -274,7 +274,11 @@ void processCommandLineInput(Configuration& config, int argc, char* argv[]) {
     ("p-louvain-contract-graph-like-hg",
      po::value<bool>(&config.preprocessing.louvain_contract_graph_like_hg)->value_name("<bool>"),
      "Louvain contracts graph equivalent to hypergraph contraction, if true and multilevel louvain is activated\n"
-     "(default: false)");
+     "(default: false)")
+     ("p-louvain-use-bipartite-graph",
+     po::value<bool>(&config.preprocessing.louvain_use_bipartite_graph)->value_name("<bool>"),
+     "If true, hypergraph is transformed into bipartite graph. If false, hypergraph is transformed into clique graph.\n"
+     "(default: true)");
 
   po::options_description coarsening_options("Coarsening Options", w.ws_col);
   coarsening_options.add_options()

@@ -61,7 +61,7 @@ class LazyVertexPairCoarsener final : public ICoarsener,
 
   void coarsenImpl(const HypernodeID limit) override final {
     _pq.clear();
-
+    
     rateAllHypernodes(_rater, _target);
 
     while (!_pq.empty() && _hg.currentNumNodes() > limit) {
@@ -99,6 +99,7 @@ class LazyVertexPairCoarsener final : public ICoarsener,
     }
   }
 
+  
   bool uncoarsenImpl(IRefiner& refiner) override final {
     return Base::doUncoarsen(refiner);
   }

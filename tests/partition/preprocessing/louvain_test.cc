@@ -59,7 +59,7 @@ public:
                             edges.push_back(e);
                         }
                    }
-                   graph = std::make_shared<Graph>(adj_array,edges);
+                   graph = std::make_shared<Graph>(adj_array,edges,config);
                    louvain = std::make_shared<Louvain<Modularity>>(*graph,config);
                }
                
@@ -70,14 +70,15 @@ public:
 
 class AModularityMeasure : public Test {
 public:
-    AModularityMeasure() : modularity(nullptr),
+    AModularityMeasure() : modularity(nullptr), config(),
                            hypergraph(7, 4, HyperedgeIndexVector { 0, 2, 6, 9, 12 },
                                  HyperedgeVector { 0, 2, 0, 1, 3, 4, 3, 4, 6, 2, 5, 6 }),
-                           graph(hypergraph) { 
+                           graph(hypergraph,config) { 
         modularity = std::make_shared<Modularity>(graph);
     }
                
     std::shared_ptr<Modularity> modularity;
+    Configuration config;
     Hypergraph hypergraph;    
     Graph graph;
 };
@@ -151,7 +152,7 @@ TEST_F(AModularityMeasure,CalculatesCorrectGainValuesForIsolatedNode) {
 }
 
 TEST_F(ALouvainAlgorithm,DoesOneLouvainPass) { 
-    Graph graph(hypergraph);
+    Graph graph(hypergraph,config);
     Modularity modularity(graph);
     EdgeWeight quality_before = modularity.quality();
     EdgeWeight quality_after = louvain->louvain_pass(graph,modularity);
@@ -159,7 +160,7 @@ TEST_F(ALouvainAlgorithm,DoesOneLouvainPass) {
 }
 
 TEST_F(ALouvainAlgorithm,AssingsMappingToNextLevelFinerGraph) {
-    Graph graph(hypergraph);
+    Graph graph(hypergraph,config);
     Modularity modularity(graph);
     louvain->louvain_pass(graph,modularity);
     auto contraction = graph.contractCluster();
