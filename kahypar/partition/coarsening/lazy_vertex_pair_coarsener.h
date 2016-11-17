@@ -60,42 +60,78 @@ class LazyVertexPairCoarsener final : public ICoarsener,
   FRIEND_TEST(ALazyUpdateCoarsener, InvalidatesAdjacentHypernodesInsteadOfReratingThem);
 
   void coarsenImpl(const HypernodeID limit) override final {
-    _pq.clear();
+
+    int pass_nr = 0;
     
-    rateAllHypernodes(_rater, _target);
-
-    while (!_pq.empty() && _hg.currentNumNodes() > limit) {
-      const HypernodeID rep_node = _pq.top();
-
-      if (_outdated_rating[rep_node]) {
-        DBG(dbg_coarsening_coarsen,
-            "Rating for HN" << rep_node << " is invalid: " << _pq.topKey() << "--->"
-            << _rater.rate(rep_node).value << " target=" << _rater.rate(rep_node).target
-            << " valid= " << _rater.rate(rep_node).valid);
-        updatePQandContractionTarget(rep_node, _rater.rate(rep_node));
-      } else {
-        const HypernodeID contracted_node = _target[rep_node];
-
-        DBG(dbg_coarsening_coarsen, "Contracting: (" << rep_node << ","
-            << _target[rep_node] << ") prio: " << _pq.topKey() <<
-            " deg(" << rep_node << ")=" << _hg.nodeDegree(rep_node) <<
-            " deg(" << contracted_node << ")=" << _hg.nodeDegree(contracted_node));
-
-        ASSERT(_hg.nodeWeight(rep_node) + _hg.nodeWeight(_target[rep_node])
-               <= _rater.thresholdNodeWeight());
-        ASSERT(_pq.topKey() == _rater.rate(rep_node).value,
-               V(_pq.topKey()) << V(_rater.rate(rep_node).value));
-
-        performContraction(rep_node, contracted_node);
-        ASSERT(_pq.contains(contracted_node), V(contracted_node));
-        _pq.remove(contracted_node);
-
-        // this also invalidates rep_node, however rep_node
-        // will be re-rated and updated afterwards
-        invalidateAffectedHypernodes(rep_node);
-
-        updatePQandContractionTarget(rep_node, _rater.rate(rep_node));
+    while (_hg.currentNumNodes() > limit) {
+      
+      LOGVAR(pass_nr);
+      LOGVAR(_hg.currentNumNodes());
+      LOGVAR(_hg.currentNumEdges());
+      
+      _pq.clear();
+      if(_config.preprocessing.use_louvain) {
+        _rater.performLouvainCommunityDetection();         
       }
+      rateAllHypernodes(_rater, _target);
+      
+      const HypernodeID num_hns_before_pass = _hg.currentNumNodes();
+      
+      while(!_pq.empty() && _hg.currentNumNodes() > limit) {
+        const HypernodeID rep_node = _pq.top();
+
+        if (_outdated_rating[rep_node]) {
+          DBG(dbg_coarsening_coarsen,
+              "Rating for HN" << rep_node << " is invalid: " << _pq.topKey() << "--->"
+              << _rater.rate(rep_node).value << " target=" << _rater.rate(rep_node).target
+              << " valid= " << _rater.rate(rep_node).valid);
+          updatePQandContractionTarget(rep_node, _rater.rate(rep_node));
+        } else {
+          const HypernodeID contracted_node = _target[rep_node];
+
+          DBG(dbg_coarsening_coarsen, "Contracting: (" << rep_node << ","
+              << _target[rep_node] << ") prio: " << _pq.topKey() <<
+              " deg(" << rep_node << ")=" << _hg.nodeDegree(rep_node) <<
+              " deg(" << contracted_node << ")=" << _hg.nodeDegree(contracted_node));
+
+          ASSERT(_hg.nodeWeight(rep_node) + _hg.nodeWeight(_target[rep_node])
+                <= _rater.thresholdNodeWeight());
+          ASSERT(_pq.topKey() == _rater.rate(rep_node).value,
+                V(_pq.topKey()) << V(_rater.rate(rep_node).value));
+
+          performContraction(rep_node, contracted_node);
+          if(_config.preprocessing.use_multilevel_louvain) {
+              _rater.contractHypernodes(rep_node,contracted_node);
+              size_t N = _hg.initialNumNodes();
+              int one_pin_hes_begin = _history.back().one_pin_hes_begin;
+              int one_pin_hes_size = _history.back().one_pin_hes_size;
+              for(int i = one_pin_hes_begin; i < one_pin_hes_begin+one_pin_hes_size; ++i) {
+                  _rater.contractHypernodes(rep_node,N+_hypergraph_pruner.removedSingleNodeHyperedges()[i]);
+              }
+              
+              int parallel_hes_begin = _history.back().parallel_hes_begin;
+              int parallel_hes_size = _history.back().parallel_hes_size;
+              for(int i = parallel_hes_begin; i < parallel_hes_begin+parallel_hes_size; ++i) {
+                  _rater.contractHypernodes(N+_hypergraph_pruner.removedParallelHyperedges()[i].representative_id,
+                                                N+_hypergraph_pruner.removedParallelHyperedges()[i].removed_id);
+              }
+          }
+          ASSERT(_pq.contains(contracted_node), V(contracted_node));
+          _pq.remove(contracted_node);
+
+          // this also invalidates rep_node, however rep_node
+          // will be re-rated and updated afterwards
+          invalidateAffectedHypernodes(rep_node);
+
+          updatePQandContractionTarget(rep_node, _rater.rate(rep_node));
+        }
+      }
+      
+      if (num_hns_before_pass == _hg.currentNumNodes()) {
+        break;
+      }
+      
+      ++pass_nr;
     }
   }
 

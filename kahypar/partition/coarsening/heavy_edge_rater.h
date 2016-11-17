@@ -74,12 +74,7 @@ class HeavyEdgeRater {
     _config(config),
     _tmp_ratings(_hg.initialNumNodes()), 
     _comm(_hg.initialNumNodes(),0), 
-    _louvain(hypergraph,_config) {
-        
-        if(_config.preprocessing.use_louvain) {
-            performLouvainCommunityDetection();
-        }
-    }
+    _louvain(hypergraph,_config) { }
 
   HeavyEdgeRater(const HeavyEdgeRater&) = delete;
   HeavyEdgeRater& operator= (const HeavyEdgeRater&) = delete;
@@ -139,7 +134,30 @@ class HeavyEdgeRater {
   HypernodeWeight thresholdNodeWeight() const {
     return _config.coarsening.max_allowed_node_weight;
   }
-
+  
+  void contractHypernodes(const HypernodeID hn1, const HypernodeID hn2) {
+    _louvain.contractHypernodes(hn1,hn2);
+  }
+  
+  void performLouvainCommunityDetection() {
+    if(_config.preprocessing.use_multilevel_louvain || !_louvain.wasAlreadyExecuted()) {
+      HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
+      std::set<ClusterID> distinct_comm;
+      EdgeWeight quality = _louvain.louvain();   
+      for(HypernodeID hn : _hg.nodes()) {
+          _comm[hn] = _louvain.clusterID(hn);
+          distinct_comm.insert(_comm[hn]);
+      }
+      HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<double> elapsed_seconds = end - start;
+      LOG("Louvain-Time: " << elapsed_seconds.count() << "s");
+      Stats::instance().addToTotal(_config,"louvainTime",elapsed_seconds.count());
+      Stats::instance().addToTotal(_config,"communities",distinct_comm.size()-Stats::instance().get("communities"));
+      Stats::instance().addToTotal(_config,"modularity",quality-Stats::instance().get("modularity")); 
+    }
+  }
+  
+  
  private:
   bool belowThresholdNodeWeight(const HypernodeWeight weight_u,
                                 const HypernodeWeight weight_v) const {
@@ -149,22 +167,6 @@ class HeavyEdgeRater {
   bool acceptRating(const RatingType tmp, const RatingType max_rating) const {
     return max_rating < tmp || (max_rating == tmp && TieBreakingPolicy::acceptEqual());
   }
-  
-    void performLouvainCommunityDetection() {
-        HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
-        std::set<ClusterID> distinct_comm;
-        EdgeWeight quality = _louvain.louvain();   
-        for(HypernodeID hn : _hg.nodes()) {
-            _comm[hn] = _louvain.clusterID(hn);
-            distinct_comm.insert(_comm[hn]);
-        }
-        HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> elapsed_seconds = end - start;
-        LOG("Louvain-Time: " << elapsed_seconds.count() << "s");
-        Stats::instance().addToTotal(_config,"louvainTime",elapsed_seconds.count());
-        Stats::instance().addToTotal(_config,"communities",distinct_comm.size()-Stats::instance().get("communities"));
-        Stats::instance().addToTotal(_config,"modularity",quality-Stats::instance().get("modularity")); 
-    }
 
   Hypergraph& _hg;
   const Configuration& _config;
