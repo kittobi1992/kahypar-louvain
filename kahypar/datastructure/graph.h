@@ -10,6 +10,7 @@
 #include <limits>
 #include <memory>
 #include <vector>
+#include <set>
 
 #include "gtest/gtest_prod.h"
 
@@ -266,91 +267,6 @@ public:
         }
     }
     
-    Graph contractGraphWithUnionFind() {
-        
-        std::vector<std::vector<Edge>> adj_list(_N,std::vector<Edge>());
-        for(NodeID node : nodes()) {
-            NodeID rep = _unionFind.findSet(node);
-            for(Edge e : adjacentNodes(node)) {
-                Edge new_e;
-                new_e.targetNode = _unionFind.findSet(e.targetNode);
-                new_e.weight = e.weight;
-                adj_list[rep].push_back(new_e);
-            }
-        }
-        
-        std::vector<NodeID> mapping(_N,INVALID_NODE);
-        NodeID cur_node = 0;
-        for(NodeID node = 0; node < _N; ++node) {
-            if(_unionFind.findSet(node) == node) {
-                mapping[node] = cur_node++;
-            }
-        }
-        
-        std::vector<NodeID> hypernodeMapping(_hypernodeMapping.size(),INVALID_NODE);
-        for(HypernodeID hn = 0; hn < _hypernodeMapping.size(); ++hn) {
-            if(_hypernodeMapping[hn] != INVALID_NODE) {
-                hypernodeMapping[hn] = mapping[_hypernodeMapping[hn]];
-            }
-        }
-    
-        
-        std::vector<NodeID> adj_array;
-        std::vector<Edge> edges;
-        std::vector<ClusterID> cluster_id(cur_node,INVALID_CLUSTER);
-        std::vector<ClusterID> cluster_id_mapping(_cluster_id.size(),INVALID_CLUSTER);
-        ClusterID cur_cid = 0;
-        for(NodeID node = 0; node < _N; ++node) {
-            if(_unionFind.findSet(node) == node) {
-                std::sort(adj_list[node].begin(),adj_list[node].end(),[&](const Edge& e1, const Edge& e2) {
-                    return mapping[e1.targetNode] < mapping[e2.targetNode];
-                });
-                //Adding Sentinel
-                Edge sentinel;
-                sentinel.targetNode = std::numeric_limits<NodeID>::max();
-                sentinel.weight = 0;
-                adj_list[node].push_back(sentinel);
-                
-                ClusterID node_cid = clusterID(node);
-                if(cluster_id_mapping[node_cid] == INVALID_CLUSTER) {
-                    cluster_id_mapping[node_cid] = cur_cid++;
-                }
-                cluster_id[mapping[node]] = cluster_id_mapping[node_cid];
-                
-                adj_array.push_back(edges.size());
-                Edge e;
-                
-                if(adj_list[node][0].targetNode == INVALID_NODE) {
-                    continue;
-                }
-                e.targetNode = mapping[adj_list[node][0].targetNode]; 
-                e.weight = adj_list[node][0].weight;;
-                for(size_t i = 1; i < adj_list[node].size(); ++i) {
-                    NodeID cur_id;
-                    
-                    if(i < adj_list[node].size()-1) cur_id = mapping[adj_list[node][i].targetNode];
-                    else cur_id = adj_list[node][i].targetNode;
-                    
-                    if(e.targetNode == cur_id) {
-                        e.weight += adj_list[node][i].weight;
-                    }
-                    else {
-                        edges.push_back(e);
-                        e.targetNode = cur_id;
-                        e.weight = adj_list[node][i].weight; 
-                    }
-                }
-            }
-        }
-        adj_array.push_back(edges.size());
-        
-        
-        Graph graph(adj_array,edges,hypernodeMapping,cluster_id,_config);
-        return std::move(graph);
-    }
-
-    
-    
     /**
      * Creates an iterator to all incident Clusters of Node node. Iterator points to an 
      * IncidentClusterWeight-Struct which contains the incident Cluster ID and the sum of
@@ -361,6 +277,19 @@ public:
      */
     std::pair<IncidentClusterWeightIterator,IncidentClusterWeightIterator> incidentClusterWeightOfNode(const NodeID node);
     
+    
+    
+    //TODO: Add Test Case for this method
+    //1.) Check if contraction is correct
+    //2.) Check if modularity is equal with contracted graph
+    /**
+     * Contracts the graph equivalent to the hypergraph coarsening phase. The contraction is based on the UnionFind-Datastructure
+     * _unionFind. Two subsets of nodes are merged, if there corresponding hypernodes are contracted in the coarsening phase.
+     * The coarsener has to call the method contractHypernodes to perform a union Operation on two node sets.
+     * 
+     * @return Contracted graph equivalent to hypergraph coarsening
+     */
+    Graph contractGraphWithUnionFind();
     
     /**
      * Contracts the Graph based on the nodes ClusterIDs. Nodes with same ClusterID are contracted
@@ -406,7 +335,10 @@ protected:
     UnionFind _unionFind;
     
 private:
-    //FRIEND_TEST(AGraph,DeterminesIncidentClusterWeightsOfAClusterCorrect);
+    FRIEND_TEST(ABipartiteGraph,DeterminesIncidentClusterWeightsOfAClusterCorrect);
+    FRIEND_TEST(ACliqueGraph,DeterminesIncidentClusterWeightsOfAClusterCorrect);
+    FRIEND_TEST(ABipartiteGraph, ReturnsCorrectHypernodeMappingWithUnionFindContraction);
+    FRIEND_TEST(ACliqueGraph, ReturnsCorrectHypernodeMappingWithUnionFindContraction);
     
     
     /**
@@ -481,6 +413,52 @@ private:
            }
         }
         
+        
+        //TODO: check if hypernodes and hyperedges describe a 1-to-1 relation
+        ASSERT([&]() {
+          //Check Hypernodes in Graph
+          for(HypernodeID hn : hg.nodes()) {
+            if(hg.nodeDegree(hn) != degree(_hypernodeMapping[hn])) { 
+              LOGVAR(hg.nodeDegree(hn));
+              LOGVAR(degree(_hypernodeMapping[hn]));
+              return false;
+            }
+            std::set<HyperedgeID> incident_edges;
+            for(HyperedgeID he : hg.incidentEdges(hn)) {
+                incident_edges.insert(he);
+            }
+            for(Edge e : adjacentNodes(_hypernodeMapping[hn])) {
+              HyperedgeID he = e.targetNode - N;
+              if(incident_edges.find(he) == incident_edges.end()) {
+                LOGVAR(_hypernodeMapping[hn]);
+                LOGVAR(he);
+                return false;
+              }
+            }
+          }
+          
+          //Checks Hyperedges in Graph
+          for(HyperedgeID he : hg.edges()) {
+            if(hg.edgeSize(he) != degree(_hypernodeMapping[he+N])) { 
+              LOGVAR(hg.edgeSize(he));
+              LOGVAR(degree(_hypernodeMapping[he+N]));
+              return false;
+            }
+            std::set<HypernodeID> pins;
+            for(HypernodeID hn : hg.pins(he)) {
+              pins.insert(hn);
+            }
+            for(Edge e : adjacentNodes(_hypernodeMapping[he+N])) {
+              if(pins.find(e.targetNode) == pins.end()) {
+                LOGVAR(_hypernodeMapping[he+N]);
+                LOGVAR(e.targetNode);
+                return false;
+              }
+            }
+          }
+          return true;
+        }(),"Bipartite Graph is not equivalent with hypergraph");
+        
     }
     
     void constructCliqueGraph(const Hypergraph& hg, bool use_uniform_edge_weight) {
@@ -499,6 +477,7 @@ private:
             
             for(HyperedgeID he : hg.incidentEdges(hn)) {
                 for(HypernodeID pin : hg.pins(he)) {
+                    if(hn == pin) continue;
                     Edge e; NodeID v = _hypernodeMapping[pin];
                     e.targetNode = v;
                     if(use_uniform_edge_weight) {
@@ -540,6 +519,32 @@ private:
         }
         
         _adj_array[_N] = sum_edges;
+
+        //TODO: check if hypernodes describe a 1-to-1 relation        
+        ASSERT([&]() {
+          for(HypernodeID hn : hg.nodes()) {
+            std::set<HypernodeID> incident_nodes;
+            for(HyperedgeID he : hg.incidentEdges(hn)) {
+              for(HypernodeID pin : hg.pins(he)) {
+                incident_nodes.insert(pin);
+              }
+            }
+            incident_nodes.erase(hn);
+            if(incident_nodes.size() != degree(hn)) {
+              LOGVAR(incident_nodes.size());
+              LOGVAR(degree(hn));
+              return false;
+            }
+            for(Edge e : adjacentNodes(hn)) {
+              if(incident_nodes.find(e.targetNode) == incident_nodes.end()) {
+                LOGVAR(hn);
+                LOGVAR(e.targetNode);
+                return false;
+              }
+            }
+          }
+          return true;
+        }(), "Clique Graph is not equivalent with Hypergraph");
         
     }
     
@@ -597,6 +602,90 @@ std::pair<IncidentClusterWeightIterator,IncidentClusterWeightIterator> Graph::in
 
     
     return std::make_pair(_incidentClusterWeight.begin(),_incidentClusterWeight.begin()+idx);
+}
+
+
+Graph Graph::contractGraphWithUnionFind() {
+    
+    std::vector<std::vector<Edge>> adj_list(_N,std::vector<Edge>());
+    for(NodeID node : nodes()) {
+        NodeID rep = _unionFind.findSet(node);
+        for(Edge e : adjacentNodes(node)) {
+            Edge new_e;
+            new_e.targetNode = _unionFind.findSet(e.targetNode);
+            new_e.weight = e.weight;
+            adj_list[rep].push_back(new_e);
+        }
+    }
+    
+    std::vector<NodeID> mapping(_N,INVALID_NODE);
+    NodeID cur_node = 0;
+    for(NodeID node = 0; node < _N; ++node) {
+        if(_unionFind.findSet(node) == node) {
+            mapping[node] = cur_node++;
+        }
+    }
+    
+    std::vector<NodeID> hypernodeMapping(_hypernodeMapping.size(),INVALID_NODE);
+    for(HypernodeID hn = 0; hn < _hypernodeMapping.size(); ++hn) {
+        if(_hypernodeMapping[hn] != INVALID_NODE) {
+            hypernodeMapping[hn] = mapping[_hypernodeMapping[hn]];
+        }
+    }
+
+    
+    std::vector<NodeID> adj_array;
+    std::vector<Edge> edges;
+    std::vector<ClusterID> cluster_id(cur_node,INVALID_CLUSTER);
+    std::vector<ClusterID> cluster_id_mapping(_cluster_id.size(),INVALID_CLUSTER);
+    ClusterID cur_cid = 0;
+    for(NodeID node = 0; node < _N; ++node) {
+        if(_unionFind.findSet(node) == node) {
+            std::sort(adj_list[node].begin(),adj_list[node].end(),[&](const Edge& e1, const Edge& e2) {
+                return mapping[e1.targetNode] < mapping[e2.targetNode];
+            });
+            //Adding Sentinel
+            Edge sentinel;
+            sentinel.targetNode = std::numeric_limits<NodeID>::max();
+            sentinel.weight = 0;
+            adj_list[node].push_back(sentinel);
+            
+            ClusterID node_cid = clusterID(node);
+            if(cluster_id_mapping[node_cid] == INVALID_CLUSTER) {
+                cluster_id_mapping[node_cid] = cur_cid++;
+            }
+            cluster_id[mapping[node]] = cluster_id_mapping[node_cid];
+            
+            adj_array.push_back(edges.size());
+            Edge e;
+            
+            if(adj_list[node][0].targetNode == INVALID_NODE) {
+                continue;
+            }
+            e.targetNode = mapping[adj_list[node][0].targetNode]; 
+            e.weight = adj_list[node][0].weight;;
+            for(size_t i = 1; i < adj_list[node].size(); ++i) {
+                NodeID cur_id;
+                
+                if(i < adj_list[node].size()-1) cur_id = mapping[adj_list[node][i].targetNode];
+                else cur_id = adj_list[node][i].targetNode;
+                
+                if(e.targetNode == cur_id) {
+                    e.weight += adj_list[node][i].weight;
+                }
+                else {
+                    edges.push_back(e);
+                    e.targetNode = cur_id;
+                    e.weight = adj_list[node][i].weight; 
+                }
+            }
+        }
+    }
+    adj_array.push_back(edges.size());
+    
+    
+    Graph graph(adj_array,edges,hypernodeMapping,cluster_id,_config);
+    return std::move(graph);
 }
 
 std::pair<Graph,std::vector<NodeID>> Graph::contractCluster() {
