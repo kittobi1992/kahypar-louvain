@@ -11,6 +11,7 @@
 #include <memory>
 #include <vector>
 #include <set>
+#include <map>
 
 #include "gtest/gtest_prod.h"
 
@@ -26,6 +27,7 @@ namespace ds {
 
 #define INVALID_NODE std::numeric_limits<NodeID>::max()
 #define INVALID_CLUSTER std::numeric_limits<ClusterID>::max()
+#define EPS 1e-5
 
 class UnionFind {
 public:
@@ -264,6 +266,7 @@ public:
         if(u_id == INVALID_NODE || v_id == INVALID_NODE) return;
         if(u_id != v_id && clusterID(u_id) == clusterID(v_id)) {
             _unionFind.unionSets(u_id,v_id);
+            ASSERT(_unionFind.findSet(u_id) == _unionFind.findSet(v_id), "Contraction of HN " << u_id << " and HN " << v_id << " wasn't succesful!");
         }
     }
     
@@ -414,7 +417,6 @@ private:
         }
         
         
-        //TODO: check if hypernodes and hyperedges describe a 1-to-1 relation
         ASSERT([&]() {
           //Check Hypernodes in Graph
           for(HypernodeID hn : hg.nodes()) {
@@ -519,8 +521,7 @@ private:
         }
         
         _adj_array[_N] = sum_edges;
-
-        //TODO: check if hypernodes describe a 1-to-1 relation        
+  
         ASSERT([&]() {
           for(HypernodeID hn : hg.nodes()) {
             std::set<HypernodeID> incident_nodes;
@@ -529,7 +530,7 @@ private:
                 incident_nodes.insert(pin);
               }
             }
-            incident_nodes.erase(hn);
+            incident_nodes.erase(hn); 
             if(incident_nodes.size() != degree(hn)) {
               LOGVAR(incident_nodes.size());
               LOGVAR(degree(hn));
@@ -576,6 +577,47 @@ std::pair<IncidentClusterWeightIterator,IncidentClusterWeightIterator> Graph::in
         }
     }
     
+    auto it = std::make_pair(_incidentClusterWeight.begin(),_incidentClusterWeight.begin()+idx);
+    
+    ASSERT([&]() {
+        std::set<ClusterID> incidentCluster;
+        if(clusterID(node) != -1) incidentCluster.insert(clusterID(node));
+        for(Edge e : adjacentNodes(node)) {
+            ClusterID cid = clusterID(e.targetNode);
+            if(cid != -1) incidentCluster.insert(cid);
+        }
+        for(auto incCluster : it) {
+            ClusterID cid = incCluster.clusterID;
+            EdgeWeight weight = incCluster.weight;
+            if(incidentCluster.find(cid) == incidentCluster.end()) {
+                LOG("ClusterID "<<cid<<" occur multiple or is not incident to node " << node << "!");
+                return false;
+            }
+            EdgeWeight incWeight = 0.0L;
+            for(Edge e : adjacentNodes(node)) {
+                ClusterID inc_cid = clusterID(e.targetNode);
+                if(inc_cid == cid) incWeight += e.weight;
+            }
+            if(abs(incWeight-weight) > EPS) {
+                LOG("Weight calculation of incident cluster " << cid << " failed!");
+                LOGVAR(incWeight);
+                LOGVAR(weight);
+                return false;
+            }
+            incidentCluster.erase(cid);
+        }
+        
+        if(incidentCluster.size() > 0) {
+            LOG("Missing cluster ids in iterator!");
+            for(ClusterID cid : incidentCluster) {
+                LOGVAR(cid);
+            }
+            return false;
+        }
+        
+        return true;
+    }(), "Incident cluster weight calculation of node " << node << " failed!");
+    
     return std::make_pair(_incidentClusterWeight.begin(),_incidentClusterWeight.begin()+idx);
 }
 
@@ -599,9 +641,52 @@ std::pair<IncidentClusterWeightIterator,IncidentClusterWeightIterator> Graph::in
             }
         }
     }
-
     
-    return std::make_pair(_incidentClusterWeight.begin(),_incidentClusterWeight.begin()+idx);
+    auto it = std::make_pair(_incidentClusterWeight.begin(),_incidentClusterWeight.begin()+idx);
+
+    ASSERT([&]() {
+        std::set<ClusterID> incidentCluster;
+           for(NodeID node : cluster_range) {
+             for(Edge e : adjacentNodes(node)) {
+                ClusterID cid = clusterID(e.targetNode);
+                if(cid != -1) incidentCluster.insert(cid);
+             }
+           }
+           for(auto incCluster : it) {
+               ClusterID cid = incCluster.clusterID;
+               EdgeWeight weight = incCluster.weight;
+               if(incidentCluster.find(cid) == incidentCluster.end()) {
+                   LOG("ClusterID "<<cid<<" occur multiple or is not incident to cluster!");
+                   return false;
+               }
+               EdgeWeight incWeight = 0.0L;
+               for(NodeID node : cluster_range) {
+                 for(Edge e : adjacentNodes(node)) {
+                   ClusterID inc_cid = clusterID(e.targetNode);
+                   if(inc_cid == cid) incWeight += e.weight;
+                 }
+               }
+               if(abs(incWeight-weight) > EPS) {
+                   LOG("Weight calculation of incident cluster " << cid << " failed!");
+                   LOGVAR(incWeight);
+                   LOGVAR(weight);
+                   return false;
+               }
+               incidentCluster.erase(cid);
+           }
+           
+           if(incidentCluster.size() > 0) {
+               LOG("Missing cluster ids in iterator!");
+               for(ClusterID cid : incidentCluster) {
+                   LOGVAR(cid);
+               }
+               return false;
+           }
+           
+           return true;
+    }(), "Incident cluster weight calculation failed!");
+    
+    return it;
 }
 
 
