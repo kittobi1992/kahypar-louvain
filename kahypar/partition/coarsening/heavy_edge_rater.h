@@ -139,6 +139,10 @@ class HeavyEdgeRater {
     _louvain.contractHypernodes(hn1,hn2);
   }
   
+  void resetCommunities() {
+    _comm.assign(_comm.size(),0);
+  }
+  
   void performLouvainCommunityDetection() {
     if(_config.preprocessing.use_multilevel_louvain || !_louvain.wasAlreadyExecuted()) {
       HighResClockTimepoint start = std::chrono::high_resolution_clock::now();

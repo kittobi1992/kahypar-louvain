@@ -43,6 +43,7 @@ struct PreprocessingParameters {
   bool louvain_contract_graph_like_hg = false;
   bool louvain_use_uniform_edge_weights = false;
   bool louvain_use_bipartite_graph = true;
+  bool only_community_contraction_allowed = false;
   int max_louvain_pass_iterations = 10;
   long double min_eps_improvement = 0.01;
 };
@@ -69,6 +70,8 @@ inline std::ostream& operator<< (std::ostream& str, const PreprocessingParameter
   << params.use_multilevel_louvain << std::endl;
   str << "  contract graph like hypergraph:        " << std::boolalpha
   << params.louvain_contract_graph_like_hg << std::endl;
+  str << "  allow only contraction in communities: " << std::boolalpha
+  << params.only_community_contraction_allowed << std::endl;  
   return str;
 }
 

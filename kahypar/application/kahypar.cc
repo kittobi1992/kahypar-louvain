@@ -278,7 +278,11 @@ void processCommandLineInput(Configuration& config, int argc, char* argv[]) {
      ("p-louvain-use-bipartite-graph",
      po::value<bool>(&config.preprocessing.louvain_use_bipartite_graph)->value_name("<bool>"),
      "If true, hypergraph is transformed into bipartite graph. If false, hypergraph is transformed into clique graph.\n"
-     "(default: true)");
+     "(default: true)")
+     ("p-allow-contraction-only-in-communities",
+      po::value<bool>(&config.preprocessing.only_community_contraction_allowed)->value_name("<bool>"),
+      "If true, coarsener discards clustering, if the contraction limit is not reached.\n"
+      "(default: false)");
 
   po::options_description coarsening_options("Coarsening Options", w.ws_col);
   coarsening_options.add_options()

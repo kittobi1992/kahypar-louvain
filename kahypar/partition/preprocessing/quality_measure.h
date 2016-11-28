@@ -20,6 +20,8 @@ using ds::Edge;
 using ds::FastResetFlagArray;
 #define EPS 1e-5
 
+const bool dbg_modularity_function = true;
+
 class QualityMeasure {
 
 friend class Modularity;
@@ -82,10 +84,11 @@ public:
         
         graph.setClusterID(node,new_cid);
         
-        /*ASSERT([&]() {
+        ASSERT([&]() {
+           if(!dbg_modularity_function) return true;
            EdgeWeight q = quality();
            return q < std::numeric_limits<EdgeWeight>::max();
-        }(), "");*/
+        }(), "");
     }
     
     inline EdgeWeight gain(NodeID node, ClusterID cid, EdgeWeight incidentCommWeight) {
@@ -98,7 +101,8 @@ public:
         
         EdgeWeight gain = incidentCommWeight - totc*w_degree/m2;
         
-        /*ASSERT([&]() {
+        ASSERT([&]() {
+            if(!dbg_modularity_function) return true;
             EdgeWeight modularity_before = modularity();
             insert(node,cid,incidentCommWeight);
             EdgeWeight modularity_after = modularity();
@@ -110,7 +114,7 @@ public:
                 return false;
             }
             return true;
-        }(), "Gain calculation failed!");*/
+        }(), "Gain calculation failed!");
         
         return gain;
     }
@@ -127,7 +131,7 @@ public:
         
         q /= m2;
         
-        //ASSERT(std::abs(q-modularity()) < EPS, "Calculated modularity (q=" << q << ") is not equal with the real modularity (modularity=" << modularity() << ")!");
+        ASSERT(!dbg_modularity_function || std::abs(q-modularity()) < EPS, "Calculated modularity (q=" << q << ") is not equal with the real modularity (modularity=" << modularity() << ")!");
         
         return q;
     }
