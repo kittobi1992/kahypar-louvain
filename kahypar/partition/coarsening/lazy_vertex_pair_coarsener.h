@@ -62,7 +62,7 @@ class LazyVertexPairCoarsener final : public ICoarsener,
   void coarsenImpl(const HypernodeID limit) override final {
 
     int pass_nr = 0;
-    bool ignoreCommunities = _config.preprocessing.only_community_contraction_allowed;;
+    bool ignoreCommunities = false;
     
     while (_hg.currentNumNodes() > limit) {
       
@@ -71,7 +71,7 @@ class LazyVertexPairCoarsener final : public ICoarsener,
       LOGVAR(_hg.currentNumEdges());
       
       _pq.clear();
-      if(_config.preprocessing.use_louvain) {
+      if(_config.preprocessing.use_louvain && !ignoreCommunities) {
         _rater.performLouvainCommunityDetection();         
       }
       rateAllHypernodes(_rater, _target);
@@ -129,7 +129,7 @@ class LazyVertexPairCoarsener final : public ICoarsener,
       }
       
       if (num_hns_before_pass == _hg.currentNumNodes()) {
-          if(_config.preprocessing.use_louvain && !ignoreCommunities && _hg.currentNumNodes() >= 2*limit) {
+          if(_config.preprocessing.use_louvain && !ignoreCommunities && !_config.preprocessing.only_community_contraction_allowed  && _hg.currentNumNodes() >= 2*limit) {
               _rater.resetCommunities();
               _pq.clear();
               rateAllHypernodes(_rater, _target);

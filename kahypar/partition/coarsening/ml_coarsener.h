@@ -82,7 +82,7 @@ class MLCoarsener final : public ICoarsener,
 
  private:
   void coarsenImpl(const HypernodeID limit) override final {
-    bool ignoreCommunities = _config.preprocessing.only_community_contraction_allowed;
+    bool ignoreCommunities = false;
     int pass_nr = 0;
     std::vector<HypernodeID> current_hns;
     ds::FastResetFlagArray<> already_matched(_hg.initialNumNodes());
@@ -91,7 +91,7 @@ class MLCoarsener final : public ICoarsener,
       LOGVAR(_hg.currentNumNodes());
       LOGVAR(_hg.currentNumEdges());
       
-      if(_config.preprocessing.use_louvain) {
+      if(_config.preprocessing.use_louvain && !ignoreCommunities) {
         performLouvainCommunityDetection();
       }
 
@@ -141,7 +141,7 @@ class MLCoarsener final : public ICoarsener,
         }
       }
       if (num_hns_before_pass == _hg.currentNumNodes()) {
-          if(_config.preprocessing.use_louvain && !ignoreCommunities && _hg.currentNumNodes() >= 2*limit) {
+          if(_config.preprocessing.use_louvain && !ignoreCommunities && !_config.preprocessing.only_community_contraction_allowed && _hg.currentNumNodes() >= 2*limit) {
             _comm.assign(_comm.size(),0);
             ignoreCommunities = true;
           }

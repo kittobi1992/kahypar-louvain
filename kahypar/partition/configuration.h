@@ -43,7 +43,7 @@ struct PreprocessingParameters {
   bool louvain_contract_graph_like_hg = false;
   bool louvain_use_uniform_edge_weights = false;
   bool louvain_use_bipartite_graph = true;
-  bool only_community_contraction_allowed = false;
+  bool only_community_contraction_allowed = true;
   int max_louvain_pass_iterations = 10;
   long double min_eps_improvement = 0.01;
 };
