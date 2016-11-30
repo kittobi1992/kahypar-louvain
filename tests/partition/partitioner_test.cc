@@ -41,10 +41,9 @@ using Refiner = TwoWayFMRefiner<NumberOfFruitlessMovesStopsSearch>;
 
 class APartitioner : public Test {
  public:
-  APartitioner(Hypergraph* graph =
-                 new Hypergraph(7, 4, HyperedgeIndexVector { 0, 2, 6, 9,  /*sentinel*/ 12 },
-                                HyperedgeVector { 0, 2, 0, 1, 3, 4, 3, 4, 6, 2, 5, 6 })) :
-    hypergraph(graph),
+  APartitioner() :
+    hypergraph(new Hypergraph(7, 4, HyperedgeIndexVector { 0, 2, 6, 9,  /*sentinel*/ 12 },
+                              HyperedgeVector { 0, 2, 0, 1, 3, 4, 3, 4, 6, 2, 5, 6 })),
     config(),
     partitioner(),
     coarsener(new FirstWinsCoarsener(*hypergraph, config,  /* heaviest_node_weight */ 1)),
@@ -52,11 +51,8 @@ class APartitioner : public Test {
     config.coarsening.contraction_limit = 2;
     config.local_search.algorithm = RefinementAlgorithm::twoway_fm;
     config.coarsening.max_allowed_node_weight = 5;
-    config.initial_partitioning.tool = InitialPartitioner::KaHyPar;
     config.partition.graph_filename = "PartitionerTest.hgr";
     config.partition.graph_partition_filename = "PartitionerTest.hgr.part.2.KaHyPar";
-    config.partition.coarse_graph_filename = "PartitionerTest_coarse.hgr";
-    config.partition.coarse_graph_partition_filename = "PartitionerTest_coarse.hgr.part.2";
     config.partition.epsilon = 0.15;
     config.partition.k = 2;
     config.partition.rb_lower_k = 0;
@@ -90,14 +86,13 @@ class APartitionerWithHyperedgeSizeThreshold : public APartitioner {
 };
 
 TEST_F(APartitioner, UsesKaHyParPartitioningOnCoarsestHypergraph) {
-  partitioner.partition(*hypergraph, *coarsener, *refiner, config, 0, (config.partition.k - 1));
+  partitioner.performPartitioning(*hypergraph, *coarsener, *refiner, config);
   ASSERT_THAT(hypergraph->partID(1), Eq(1));
   ASSERT_THAT(hypergraph->partID(3), Eq(0));
 }
 
 TEST_F(APartitioner, UncoarsensTheInitiallyPartitionedHypergraph) {
-  partitioner.partition(*hypergraph, *coarsener, *refiner, config,
-                        0, (config.partition.k - 1));
+  partitioner.performPartitioning(*hypergraph, *coarsener, *refiner, config);
   hypergraph->printGraphState();
   ASSERT_THAT(hypergraph->partID(0), Eq(1));
   ASSERT_THAT(hypergraph->partID(1), Eq(1));
@@ -113,8 +108,7 @@ TEST_F(APartitioner, CalculatesPinCountsOfAHyperedgesAfterInitialPartitioning) {
   ASSERT_THAT(hypergraph->pinCountInPart(0, 1), Eq(0));
   ASSERT_THAT(hypergraph->pinCountInPart(2, 0), Eq(0));
   ASSERT_THAT(hypergraph->pinCountInPart(2, 1), Eq(0));
-  partitioner.partition(*hypergraph, *coarsener, *refiner, config,
-                        0, (config.partition.k - 1));
+  partitioner.performPartitioning(*hypergraph, *coarsener, *refiner, config);
   ASSERT_THAT(hypergraph->pinCountInPart(0, 0), Eq(0));
   ASSERT_THAT(hypergraph->pinCountInPart(0, 1), Eq(2));
   ASSERT_THAT(hypergraph->pinCountInPart(2, 0), Eq(3));
@@ -125,8 +119,7 @@ TEST_F(APartitioner, CanUseVcyclesAsGlobalSearchStrategy) {
   // simulate the first vcycle by explicitly setting a partitioning
   config.partition.global_search_iterations = 2;
   DBG(true, metrics::hyperedgeCut(*hypergraph));
-  partitioner.partition(*hypergraph, *coarsener, *refiner, config,
-                        0, (config.partition.k - 1));
+  partitioner.performPartitioning(*hypergraph, *coarsener, *refiner, config);
   hypergraph->printGraphState();
   DBG(true, metrics::hyperedgeCut(*hypergraph));
   metrics::hyperedgeCut(*hypergraph);

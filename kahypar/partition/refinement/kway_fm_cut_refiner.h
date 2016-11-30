@@ -85,30 +85,23 @@ class KWayFMRefiner final : public IRefiner,
   FRIEND_TEST(AKwayFMRefinerDeathTest, ConsidersSingleNodeHEsDuringInducedGainComputation);
   FRIEND_TEST(AKwayFMRefiner, KnowsIfAHyperedgeIsFullyActive);
 
-#ifdef USE_BUCKET_PQ
   void initializeImpl(const HyperedgeWeight max_gain) override final {
     if (!_is_initialized) {
+#ifdef USE_BUCKET_QUEUE
       _pq.initialize(_hg.initialNumNodes(), max_gain);
-      // _pq.initialize(_hg.initialNumNodes());
-      _is_initialized = true;
-    }
-    _gain_cache.clear();
-    initializeGainCache();
-  }
 #else
-  void initializeImpl() override final {
-    if (!_is_initialized) {
+      (void)max_gain;
       _pq.initialize(_hg.initialNumNodes());
+#endif
       _is_initialized = true;
     }
     _gain_cache.clear();
     initializeGainCache();
   }
-#endif
 
   bool refineImpl(std::vector<HypernodeID>& refinement_nodes,
-                  const std::array<HypernodeWeight, 2>& UNUSED(max_allowed_part_weights),
-                  const UncontractionGainChanges& UNUSED(changes),
+                  const std::array<HypernodeWeight, 2>&,
+                  const UncontractionGainChanges&,
                   Metrics& best_metrics) override final {
     ASSERT(best_metrics.cut == metrics::hyperedgeCut(_hg),
            V(best_metrics.cut) << V(metrics::hyperedgeCut(_hg)));

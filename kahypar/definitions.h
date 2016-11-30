@@ -28,17 +28,17 @@
 // #include "datastructure/GenericHypergraph2.h"
 
 // Use bucket PQ for FM refinement.
-// #define USE_BUCKET_PQ
+// #define USE_BUCKET_QUEUE
 
 // Gather advanced statistics
 // #define GATHER_STATS
 
 namespace kahypar {
-using HypernodeID = std::uint32_t;
-using HyperedgeID = std::uint32_t;
-using HypernodeWeight = std::uint32_t;
-using HyperedgeWeight = std::int32_t;
-using PartitionID = std::int32_t;
+using HypernodeID = uint32_t;
+using HyperedgeID = uint32_t;
+using HypernodeWeight = uint32_t;
+using HyperedgeWeight = int32_t;
+using PartitionID = int32_t;
 using Gain = HyperedgeWeight;
 
 using Hypergraph = kahypar::ds::GenericHypergraph<HypernodeID,
@@ -75,11 +75,19 @@ static kahypar::IncidenceIterator end(const std::pair<kahypar::IncidenceIterator
   return x.second;
 }
 
-// static const HypernodeID* begin(std::pair<const HypernodeID*, const HypernodeID*>& x) {
+// static const kahypar::HypernodeID* begin(std::pair<const kahypar::HypernodeID*, const kahypar::HypernodeID*>& x) {
 //   return x.first;
 // }
 
-// static const HypernodeID* end(std::pair<const HypernodeID*, const HypernodeID*>& x) {
+// static const kahypar::HypernodeID* end(std::pair<const kahypar::HypernodeID*, const kahypar::HypernodeID*>& x) {
+//   return x.second;
+// }
+
+// static const kahypar::HypernodeID* begin(const std::pair<const kahypar::HypernodeID*, const kahypar::HypernodeID*>& x) {
+//   return x.first;
+// }
+
+// static const kahypar::HypernodeID* end(const std::pair<const kahypar::HypernodeID*, const kahypar::HypernodeID*>& x) {
 //   return x.second;
 // }
 }  // namespace std

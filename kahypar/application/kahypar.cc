@@ -20,8 +20,14 @@
 
 #include <boost/program_options.hpp>
 
+#if defined(_MSC_VER)
+#include <Windows.h>
+#include <process.h>
+#else
 #include <sys/ioctl.h>
+#endif
 
+#include <cctype>
 #include <chrono>
 #include <iostream>
 #include <memory>
@@ -33,6 +39,7 @@
 #include "kahypar/io/sql_plottools_serializer.h"
 #include "kahypar/kahypar.h"
 #include "kahypar/macros.h"
+#include "kahypar/utils/math.h"
 #include "kahypar/utils/randomize.h"
 
 namespace po = boost::program_options;
@@ -52,7 +59,28 @@ using kahypar::InitialPartitionerAlgorithm;
 using kahypar::RefinementStoppingRule;
 using kahypar::GlobalRebalancingMode;
 using kahypar::InitialPartitioningTechnique;
-using kahypar::InitialPartitioner;
+
+int getTerminalWidth() {
+  int columns = 0;
+#if defined(_MSC_VER)
+  CONSOLE_SCREEN_BUFFER_INFO csbi;
+  GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+  columns = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+#else
+  struct winsize w;
+  ioctl(0, TIOCGWINSZ, &w);
+  columns = w.ws_col;
+#endif
+  return columns;
+}
+
+int getProcessID() {
+#if defined(_MSC_VER)
+  return _getpid();
+#else
+  return getpid();
+  #endif
+}
 
 void checkRecursiveBisectionMode(RefinementAlgorithm& algo) {
   if (algo == RefinementAlgorithm::kway_fm) {
@@ -146,31 +174,22 @@ void sanityCheck(Configuration& config) {
 
 
 void processCommandLineInput(Configuration& config, int argc, char* argv[]) {
-  struct winsize w;
-  ioctl(0, TIOCGWINSZ, &w);
+  const int num_columns = getTerminalWidth();
 
-  po::options_description generic_options("Generic Options", w.ws_col);
+  po::options_description generic_options("Generic Options", num_columns);
   generic_options.add_options()
     ("help", "show help message")
     ("verbose,v", po::value<bool>(&config.partition.verbose_output)->value_name("<bool>"),
     "Verbose partitioning output");
 
-  po::options_description required_options("Required Options", w.ws_col);
+  po::options_description required_options("Required Options", num_columns);
   required_options.add_options()
     ("hypergraph,h",
     po::value<std::string>(&config.partition.graph_filename)->value_name("<string>")->required()->notifier(
       [&](const std::string&) {
-    config.partition.coarse_graph_filename =
-      std::string("/tmp/PID_")
-      + std::to_string(getpid()) + std::string("_coarse_")
-      + config.partition.graph_filename.substr(
-        config.partition.graph_filename.find_last_of("/") + 1);
     config.partition.graph_partition_filename =
       config.partition.graph_filename + ".part."
       + std::to_string(config.partition.k) + ".KaHyPar";
-    config.partition.coarse_graph_partition_filename =
-      config.partition.coarse_graph_filename + ".part."
-      + std::to_string(config.partition.k);
   }),
     "Hypergraph filename")
     ("blocks,k",
@@ -204,7 +223,7 @@ void processCommandLineInput(Configuration& config, int argc, char* argv[]) {
     " - (direct) k-way");
 
   std::string config_path;
-  po::options_description preset_options("Preset Options", w.ws_col);
+  po::options_description preset_options("Preset Options", num_columns);
   preset_options.add_options()
     ("preset,p", po::value<std::string>(&config_path)->value_name("<string>"),
     "Configuration Presets:\n"
@@ -212,7 +231,7 @@ void processCommandLineInput(Configuration& config, int argc, char* argv[]) {
     " - rb_cut_alenex16\n"
     " - <path-to-custom-ini-file>");
 
-  po::options_description general_options("General Options", w.ws_col);
+  po::options_description general_options("General Options", num_columns);
   general_options.add_options()
     ("seed",
     po::value<int>(&config.partition.seed)->value_name("<int>"),
@@ -232,12 +251,31 @@ void processCommandLineInput(Configuration& config, int argc, char* argv[]) {
     "# V-cycle iterations for direct k-way partitioning \n"
     "(default: 0)");
 
-  po::options_description preprocessing_options("Preprocessing Options", w.ws_col);
+  po::options_description preprocessing_options("Preprocessing Options", num_columns);
   preprocessing_options.add_options()
     ("p-use-sparsifier",
-    po::value<bool>(&config.preprocessing.use_min_hash_sparsifier)->value_name("<bool>"),
+    po::value<bool>(&config.preprocessing.enable_min_hash_sparsifier)->value_name("<bool>"),
     "Use min-hash pin sparsifier before partitioning \n"
     "(default: false)")
+   ("p-sparsifier-min-median-he-size",
+    po::value<HypernodeID>(&config.preprocessing.min_hash_sparsifier.min_median_he_size)->value_name("<int>"),
+    "Minimum median hyperedge size necessary for sparsifier application \n"
+    "(default: 28)")
+    ("p-sparsifier-max-hyperedge-size",
+    po::value<uint32_t>(&config.preprocessing.min_hash_sparsifier.max_hyperedge_size)->value_name("<int>"),
+    "Max hyperedge size allowed considered by sparsifier")
+    ("p-sparsifier-max-cluster-size",
+    po::value<uint32_t>(&config.preprocessing.min_hash_sparsifier.max_cluster_size)->value_name("<int>"),
+    "Max cluster size which is built by sparsifier")
+    ("p-sparsifier-min-cluster-size",
+    po::value<uint32_t>(&config.preprocessing.min_hash_sparsifier.min_cluster_size)->value_name("<int>"),
+    "Min cluster size which is built by sparsifier")
+    ("p-sparsifier-num-hash-func",
+    po::value<uint32_t>(&config.preprocessing.min_hash_sparsifier.num_hash_functions)->value_name("<int>"),
+    "Number of hash functions")
+    ("p-sparsifier-combined-num-hash-func",
+    po::value<uint32_t>(&config.preprocessing.min_hash_sparsifier.combined_num_hash_functions)->value_name("<int>"),
+    "Number of combined hash functions")
     ("p-parallel-net-removal",
     po::value<bool>(&config.preprocessing.remove_parallel_hes)->value_name("<bool>"),
     "Remove parallel hyperedges before partitioning \n"
@@ -284,7 +322,7 @@ void processCommandLineInput(Configuration& config, int argc, char* argv[]) {
       "If true, coarsener discards clustering, if the contraction limit is not reached.\n"
       "(default: false)");
 
-  po::options_description coarsening_options("Coarsening Options", w.ws_col);
+  po::options_description coarsening_options("Coarsening Options", num_columns);
   coarsening_options.add_options()
     ("c-type",
     po::value<std::string>()->value_name("<string>")->notifier(
@@ -307,19 +345,8 @@ void processCommandLineInput(Configuration& config, int argc, char* argv[]) {
     "(default: 160)");
 
 
-  po::options_description ip_options("Initial Partitioning Options", w.ws_col);
+  po::options_description ip_options("Initial Partitioning Options", num_columns);
   ip_options.add_options()
-    ("i-type",
-    po::value<std::string>()->value_name("<string>")->notifier(
-      [&](const std::string& initial_partitioner) {
-    config.initial_partitioning.tool =
-      kahypar::initialPartitionerFromString(initial_partitioner);
-  }),
-    "Initial Partitioner:\n"
-    " - KaHyPar\n"
-    " - hMetis\n"
-    " - PaToH\n"
-    "(default: KaHyPar)")
     ("i-mode",
     po::value<std::string>()->value_name("<string>")->notifier(
       [&](const std::string& ip_mode) {
@@ -390,9 +417,7 @@ void processCommandLineInput(Configuration& config, int argc, char* argv[]) {
   }),
     "Stopping Rule for IP Local Search: \n"
     " - adaptive_opt: ALENEX'17 stopping rule \n"
-    " - adaptive1:    new nGP implementation \n"
-    " - adaptive2:    original nGP implementation \n"
-    " - simple:       threshold based on i-r-i\n"
+    " - simple:       ALENEX'16 threshold based on i-r-i\n"
     "(default: simple)")
     ("i-r-fm-stop-i",
     po::value<int>(&config.initial_partitioning.local_search.fm.max_number_of_fruitless_moves)->value_name("<int>"),
@@ -407,31 +432,9 @@ void processCommandLineInput(Configuration& config, int argc, char* argv[]) {
     }
   }),
     "Max. # local search repetitions on each level \n"
-    "(default:1, no limit:-1)")
-    ("i-path",
-    po::value<std::string>(&config.initial_partitioning.tool_path)->value_name("<string>")->notifier(
-      [&](const std::string& tool_path) {
-    if (tool_path == "-") {
-      switch (config.initial_partitioning.tool) {
-        case InitialPartitioner::hMetis:
-          config.initial_partitioning.tool_path =
-            "/software/hmetis-2.0pre1/Linux-x86_64/hmetis2.0pre1";
-          break;
-        case InitialPartitioner::PaToH:
-          config.initial_partitioning.tool_path =
-            "/software/patoh-Linux-x86_64/Linux-x86_64/patoh";
-          break;
-        case InitialPartitioner::KaHyPar:
-          config.initial_partitioning.tool_path = "-";
-          break;
-      }
-    }
-  }),
-    "Path to hMetis or PaToH binary.\n"
-    "Only necessary if hMetis or PaToH is chosen as initial partitioner.");
+    "(default:1, no limit:-1)");
 
-
-  po::options_description refinement_options("Refinement Options", w.ws_col);
+  po::options_description refinement_options("Refinement Options", num_columns);
   refinement_options.add_options()
     ("r-type",
     po::value<std::string>()->value_name("<string>")->notifier(
@@ -502,7 +505,7 @@ void processCommandLineInput(Configuration& config, int argc, char* argv[]) {
   po::store(po::parse_command_line(argc, argv, cmd_line_options), cmd_vm);
 
   // placing vm.count("help") here prevents required attributes raising an
-  // error of only help was supplied
+  // error if only help was supplied
   if (cmd_vm.count("help")) {
     std::cout << cmd_line_options << "n";
     exit(0);
@@ -512,8 +515,8 @@ void processCommandLineInput(Configuration& config, int argc, char* argv[]) {
 
   std::ifstream file(config_path.c_str());
   if (!file) {
-    std::cout << "Could not load config file at: " << config_path << std::endl;
-    exit(0);
+    std::cerr << "Could not load config file at: " << config_path << std::endl;
+    std::exit(-1);
   }
 
   po::options_description ini_line_options;
@@ -534,9 +537,9 @@ int main(int argc, char* argv[]) {
   sanityCheck(config);
 
   if (config.partition.global_search_iterations != 0) {
-    LOG("Coarsener does not check if HNs are in same part.");
-    LOG("Therefore v-cycles are currently disabled.");
-    exit(0);
+    std::cerr << "Coarsened does not check if HNs are in same part." << std::endl;
+    std::cerr << "Therefore v-cycles are currently disabled." << std::endl;
+    std::exit(-1);
   }
 
   kahypar::Randomize::instance().setSeed(config.partition.seed);
@@ -546,6 +549,20 @@ int main(int argc, char* argv[]) {
                                           config.partition.k));
   
 
+
+  if (config.preprocessing.enable_min_hash_sparsifier) {
+    // determine whether or not to apply the sparsifier
+    std::vector<HypernodeID> he_sizes;
+    he_sizes.reserve(hypergraph.currentNumEdges());
+    for (auto he : hypergraph.edges()) {
+      he_sizes.push_back(hypergraph.edgeSize(he));
+    }
+    std::sort(he_sizes.begin(), he_sizes.end());
+    if (kahypar::math::median(he_sizes) >=
+        config.preprocessing.min_hash_sparsifier.min_median_he_size) {
+      config.preprocessing.min_hash_sparsifier.is_active = true;
+    }
+  }
 
   if (config.partition.verbose_output) {
     kahypar::io::printHypergraphInfo(hypergraph,
@@ -569,9 +586,6 @@ int main(int argc, char* argv[]) {
   kahypar::io::printPartitioningResults(hypergraph, config, elapsed_seconds);
   kahypar::io::writePartitionFile(hypergraph,
                                   config.partition.graph_partition_filename);
-
-  std::remove(config.partition.coarse_graph_filename.c_str());
-  std::remove(config.partition.coarse_graph_partition_filename.c_str());
 
   kahypar::io::serializer::serialize(config, hypergraph, partitioner, elapsed_seconds);
   return 0;

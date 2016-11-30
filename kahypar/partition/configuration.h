@@ -31,10 +31,21 @@
 #include "kahypar/partition/configuration_enum_classes.h"
 
 namespace kahypar {
+struct MinHashSparsifierParameters {
+  uint32_t max_hyperedge_size = 1200;
+  uint32_t max_cluster_size = 10;
+  uint32_t min_cluster_size = 2;
+  uint32_t num_hash_functions = 5;
+  uint32_t combined_num_hash_functions = 100;
+  HypernodeID min_median_he_size = 28;
+  bool is_active = false;
+};
+
 struct PreprocessingParameters {
-  bool use_min_hash_sparsifier = false;
+  bool enable_min_hash_sparsifier = false;
   bool remove_always_cut_hes = false;
   bool remove_parallel_hes = false;
+  MinHashSparsifierParameters min_hash_sparsifier = MinHashSparsifierParameters();
   
   //Louvain-Configuration
   bool use_louvain = false;
@@ -48,14 +59,38 @@ struct PreprocessingParameters {
   long double min_eps_improvement = 0.01;
 };
 
+inline std::ostream& operator<< (std::ostream& str, const MinHashSparsifierParameters& params) {
+  str << "MinHash Sparsifier Parameters:" << std::endl;
+  str << "  max hyperedge size:                 "
+  << params.max_hyperedge_size << std::endl;
+  str << "  max cluster size:                   "
+  << params.max_cluster_size << std::endl;
+  str << "  min cluster size:                   "
+  << params.min_cluster_size << std::endl;
+  str << "  number of hash functions:           "
+  << params.num_hash_functions << std::endl;
+  str << "  number of combined hash functions:  "
+  << params.combined_num_hash_functions << std::endl;
+  str << "  active at median net size >=:       "
+  << params.min_median_he_size << std::endl;
+  str << "  sparsifier is active:               " << std::boolalpha
+  << params.is_active;
+  return str;
+}
+
+
 inline std::ostream& operator<< (std::ostream& str, const PreprocessingParameters& params) {
   str << "Preprocessing Parameters:" << std::endl;
-  str << "  use min hash sparsifier:               " << std::boolalpha
-  << params.use_min_hash_sparsifier << std::endl;
+  str << "  enable min hash sparsifier:         " << std::boolalpha
+  << params.enable_min_hash_sparsifier << std::endl;
   str << "  remove parallel HEs:                   " << std::boolalpha
   << params.remove_parallel_hes << std::endl;
   str << "  remove HEs that always will be cut:    " << std::boolalpha
   << params.remove_always_cut_hes << std::endl;
+  if (params.enable_min_hash_sparsifier) {
+    str << "---------------------------------------------------------------------" << std::endl;
+    str << params.min_hash_sparsifier << std::endl;
+  }
   str << "  use louvain community detection:       " << std::boolalpha
   << params.use_louvain << std::endl;
   str << "  use louvain community detection in IP: " << std::boolalpha
@@ -74,6 +109,7 @@ inline std::ostream& operator<< (std::ostream& str, const PreprocessingParameter
   << params.only_community_contraction_allowed << std::endl;  
   return str;
 }
+
 
 struct CoarseningParameters {
   CoarseningAlgorithm algorithm = CoarseningAlgorithm::heavy_lazy;
@@ -150,15 +186,12 @@ inline std::ostream& operator<< (std::ostream& str, const LocalSearchParameters&
 
 struct InitialPartitioningParameters {
   InitialPartitioningParameters() :
-    tool(InitialPartitioner::KaHyPar),
     mode(Mode::recursive_bisection),
     technique(InitialPartitioningTechnique::flat),
     algo(InitialPartitionerAlgorithm::pool),
     coarsening(),
     local_search(),
     nruns(20),
-    hmetis_ub_factor(-1.0),
-    tool_path(),
     k(2),
     epsilon(0.05),
     upper_allowed_partition_weight(),
@@ -182,20 +215,12 @@ struct InitialPartitioningParameters {
     local_search.fm.global_rebalancing = GlobalRebalancingMode::off;
   }
 
-  InitialPartitioner tool;
   Mode mode;
   InitialPartitioningTechnique technique;
   InitialPartitionerAlgorithm algo;
   CoarseningParameters coarsening;
   LocalSearchParameters local_search;
   int nruns;
-  // If hMetis-R is used as initial partitioner, we have to calculate the
-  // appropriate ub_factor to ensure that the final initial partition is
-  // balanced.
-  double hmetis_ub_factor;
-  // If external tools are used to do initial partitioning, tool_path stores
-  // the path to binary.
-  std::string tool_path;
 
   // The following parameters are only used internally and are not supposed to
   // be changed by the user.
@@ -220,20 +245,14 @@ struct InitialPartitioningParameters {
 inline std::ostream& operator<< (std::ostream& str, const InitialPartitioningParameters& params) {
   str << "---------------------------------------------------------------------" << std::endl;
   str << "Initial Partitioning Parameters:" << std::endl;
-  str << "  Tool:                               " << toString(params.tool) << std::endl;
   str << "  # IP trials:                        " << params.nruns << std::endl;
-  if (params.tool == InitialPartitioner::KaHyPar) {
-    str << "  Mode:                               " << toString(params.mode) << std::endl;
-    str << "  Technique:                          " << toString(params.technique) << std::endl;
-    str << "  Algorithm:                          " << toString(params.algo) << std::endl;
-    str << "IP Coarsening:                        " << std::endl;
-    str << params.coarsening;
-    str << "IP Local Search:                      " << std::endl;
-    str << params.local_search;
-  } else {
-    str << "  IP Path:                            " << params.tool_path << std::endl;
-    str << "  hmetis_ub_factor:                   " << params.hmetis_ub_factor << std::endl;
-  }
+  str << "  Mode:                               " << toString(params.mode) << std::endl;
+  str << "  Technique:                          " << toString(params.technique) << std::endl;
+  str << "  Algorithm:                          " << toString(params.algo) << std::endl;
+  str << "IP Coarsening:                        " << std::endl;
+  str << params.coarsening;
+  str << "IP Local Search:                      " << std::endl;
+  str << params.local_search;
   str << "---------------------------------------------------------------------" << std::endl;
   return str;
 }
@@ -260,9 +279,7 @@ struct PartitioningParameters {
     verbose_output(false),
     collect_stats(false),
     graph_filename(),
-    graph_partition_filename(),
-    coarse_graph_filename(),
-    coarse_graph_partition_filename() { }
+    graph_partition_filename() { }
 
   Mode mode;
   Objective objective;
@@ -283,16 +300,12 @@ struct PartitioningParameters {
 
   std::string graph_filename;
   std::string graph_partition_filename;
-  std::string coarse_graph_filename;
-  std::string coarse_graph_partition_filename;
 };
 
 inline std::ostream& operator<< (std::ostream& str, const PartitioningParameters& params) {
   str << "KaHyPar Partitioning Parameters:" << std::endl;
   str << "  Hypergraph:                         " << params.graph_filename << std::endl;
   str << "  Partition File:                     " << params.graph_partition_filename << std::endl;
-  str << "  Coarsened Hypergraph:               " << params.coarse_graph_filename << std::endl;
-  str << "  Coarsened Partition File:           " << params.coarse_graph_partition_filename << std::endl;
   str << "  Mode:                               " << toString(params.mode) << std::endl;
   str << "  Objective:                          " << toString(params.objective) << std::endl;
   str << "  k:                                  " << params.k << std::endl;

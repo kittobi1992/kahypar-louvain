@@ -29,7 +29,6 @@
 #include <vector>
 
 #include "kahypar/datastructure/fast_reset_flag_array.h"
-#include "kahypar/datastructure/sparse_map.h"
 #include "kahypar/definitions.h"
 #include "kahypar/meta/mandatory.h"
 #include "kahypar/partition/initial_partitioning/i_initial_partitioner.h"
@@ -50,21 +49,11 @@ class LabelPropagationInitialPartitioner : public IInitialPartitioner,
   LabelPropagationInitialPartitioner(Hypergraph& hypergraph,
                                      Configuration& config) :
     InitialPartitionerBase(hypergraph, config),
+    _valid_parts(config.initial_partitioning.k),
     _in_queue(hypergraph.initialNumNodes()),
-    _tmp_scores(_config.initial_partitioning.k, 0),
-    _unassigned_nodes(),
-    _unconnected_nodes(),
-    _unassigned_node_bound(0) {
+    _tmp_scores(_config.initial_partitioning.k, 0) {
     static_assert(std::is_same<GainComputation, FMGainComputationPolicy>::value,
                   "ScLaP-IP only supports FM gain");
-    for (const HypernodeID hn : _hg.nodes()) {
-      if (_hg.nodeDegree(hn > 0)) {
-        _unassigned_nodes.push_back(hn);
-      } else {
-        _unconnected_nodes.push_back(hn);
-      }
-    }
-    _unassigned_node_bound = _unassigned_nodes.size();
   }
 
   ~LabelPropagationInitialPartitioner() { }
@@ -80,7 +69,7 @@ class LabelPropagationInitialPartitioner : public IInitialPartitioner,
       _config.initial_partitioning.unassigned_part;
     _config.initial_partitioning.unassigned_part = -1;
     InitialPartitionerBase::resetPartitioning();
-    _unassigned_node_bound = _unassigned_nodes.size();
+
     std::vector<HypernodeID> nodes;
     for (const HypernodeID hn : _hg.nodes()) {
       if (_hg.nodeDegree(hn) > 0) {
@@ -100,16 +89,14 @@ class LabelPropagationInitialPartitioner : public IInitialPartitioner,
       assignKConnectedHypernodesToPart(startNodes[i], i, connected_nodes);
     }
 
-    ASSERT(
-      [&]() {
+    ASSERT([&]() {
         for (PartitionID i = 0; i < _config.initial_partitioning.k; ++i) {
           if (static_cast<int>(_hg.partSize(i)) != connected_nodes) {
             return false;
           }
         }
         return true;
-      } (),
-      "Size of a partition is not equal " << connected_nodes << "!");
+      }());
 
     bool converged = false;
     size_t iterations = 0;
@@ -177,9 +164,9 @@ class LabelPropagationInitialPartitioner : public IInitialPartitioner,
       // five additional hypernodes and assign them to the part with minimum weight to continue with
       // Label Propagation.
 
-      if (converged && getUnassignedNode2() != kInvalidNode) {
+      if (converged && getUnassignedNode() != kInvalidNode) {
         for (auto i = 0; i < _config.initial_partitioning.lp_assign_vertex_to_part; ++i) {
-          HypernodeID hn = getUnassignedNode2();
+          HypernodeID hn = getUnassignedNode();
           if (hn == kInvalidNode) {
             break;
           }
@@ -190,16 +177,9 @@ class LabelPropagationInitialPartitioner : public IInitialPartitioner,
     }
 
     // If there are any unassigned hypernodes left, we assign them to a part with minimum weight.
-    while (getUnassignedNode2() != kInvalidNode) {
-      HypernodeID hn = getUnassignedNode2();
+    while (getUnassignedNode() != kInvalidNode) {
+      HypernodeID hn = getUnassignedNode();
       assignHypernodeToPartWithMinimumPartWeight(hn);
-    }
-
-    // If there are any unconnected hypernodes left, we assign them to a part with minimum weight.
-    for (const HypernodeID hn : _unconnected_nodes) {
-      if (_hg.partID(hn) == -1) {
-        assignHypernodeToPartWithMinimumPartWeight(hn);
-      }
     }
 
     _config.initial_partitioning.unassigned_part = unassigned_part;
@@ -230,18 +210,21 @@ class LabelPropagationInitialPartitioner : public IInitialPartitioner,
               CalculateMaxGainMoveOfAnUnassignedHypernodeIfAllHypernodesAreAssigned);
 
   PartitionGainPair computeMaxGainMoveForUnassignedSourcePart(const HypernodeID hn) {
-    _tmp_scores.clear();
+    ASSERT(std::all_of(_tmp_scores.begin(), _tmp_scores.end(), [](Gain i) { return i == 0; }),
+           "Temp gain array not initialized properly");
+    _valid_parts.reset();
 
     HyperedgeWeight internal_weight = 0;
     for (const HyperedgeID he : _hg.incidentEdges(hn)) {
       const HyperedgeWeight he_weight = _hg.edgeWeight(he);
       if (_hg.connectivity(he) == 1) {
         const PartitionID connected_part = *_hg.connectivitySet(he).begin();
+        _valid_parts.set(connected_part, true);
         internal_weight += he_weight;
         _tmp_scores[connected_part] += he_weight;
       } else {
         for (const PartitionID target_part : _hg.connectivitySet(he)) {
-          _tmp_scores.add(target_part, 0);
+          _valid_parts.set(target_part, true);
         }
       }
     }
@@ -249,42 +232,48 @@ class LabelPropagationInitialPartitioner : public IInitialPartitioner,
     const HypernodeWeight hn_weight = _hg.nodeWeight(hn);
     PartitionID max_part = -1;
     Gain max_score = std::numeric_limits<Gain>::min();
-    for (auto& target_part : _tmp_scores) {
-      target_part.value -= internal_weight;
+    for (PartitionID target_part = 0; target_part < _config.initial_partitioning.k; ++target_part) {
+      if (_valid_parts[target_part]) {
+        _tmp_scores[target_part] -= internal_weight;
 
-      ASSERT([&]() {
-          ds::FastResetFlagArray<> bv(_hg.initialNumNodes());
-          Gain gain = GainComputation::calculateGain(_hg, hn, target_part.key, bv);
-          if (target_part.value != gain) {
-            LOGVAR(hn);
-            LOGVAR(_hg.partID(hn));
-            LOGVAR(target_part.key);
-            LOGVAR(target_part.value);
-            LOGVAR(gain);
-            for (const HyperedgeID he : _hg.incidentEdges(hn)) {
-              _hg.printEdgeState(he);
+        ASSERT([&]() {
+            ds::FastResetFlagArray<> bv(_hg.initialNumNodes());
+            Gain gain = GainComputation::calculateGain(_hg, hn, target_part, bv);
+            if (_tmp_scores[target_part] != gain) {
+              LOGVAR(hn);
+              LOGVAR(_hg.partID(hn));
+              LOGVAR(target_part);
+              LOGVAR(_tmp_scores[target_part]);
+              LOGVAR(gain);
+              for (const HyperedgeID he : _hg.incidentEdges(hn)) {
+                _hg.printEdgeState(he);
+              }
+              return false;
             }
-            return false;
+            return true;
+          } (), "Calculated gain is invalid");
+
+
+        if (_hg.partWeight(target_part) + hn_weight
+            <= _config.initial_partitioning.upper_allowed_partition_weight[target_part]) {
+          if (_tmp_scores[target_part] > max_score) {
+            max_score = _tmp_scores[target_part];
+            max_part = target_part;
           }
-          return true;
-        } (), "Calculated gain is invalid");
-
-
-      if (_hg.partWeight(target_part.key) + hn_weight
-          <= _config.initial_partitioning.upper_allowed_partition_weight[target_part.key]) {
-        if (target_part.value > max_score) {
-          max_score = target_part.value;
-          max_part = target_part.key;
         }
+        _tmp_scores[target_part] = 0;
       }
     }
     return std::make_pair(max_part, max_score);
   }
 
   PartitionGainPair computeMaxGainMoveForAssignedSourcePart(const HypernodeID hn) {
+    ASSERT(std::all_of(_tmp_scores.begin(), _tmp_scores.end(), [](Gain i) { return i == 0; }),
+           "Temp gain array not initialized properly");
+    _valid_parts.reset();
+
     const PartitionID source_part = _hg.partID(hn);
     HyperedgeWeight internal_weight = 0;
-    _tmp_scores.clear();
     for (const HyperedgeID he : _hg.incidentEdges(hn)) {
       const HypernodeID pins_in_source_part = _hg.pinCountInPart(he, source_part);
       const HyperedgeWeight he_weight = _hg.edgeWeight(he);
@@ -297,7 +286,7 @@ class LabelPropagationInitialPartitioner : public IInitialPartitioner,
           break;
         case 2:
           for (const PartitionID target_part : _hg.connectivitySet(he)) {
-            _tmp_scores.add(target_part, 0);
+            _valid_parts.set(target_part, true);
             if (pins_in_source_part == 1 && _hg.pinCountInPart(he, target_part) != 0) {
               _tmp_scores[target_part] += he_weight;
             }
@@ -305,7 +294,7 @@ class LabelPropagationInitialPartitioner : public IInitialPartitioner,
           break;
         default:
           for (const PartitionID target_part : _hg.connectivitySet(he)) {
-            _tmp_scores.add(target_part, 0);
+            _valid_parts.set(target_part, true);
           }
           break;
       }
@@ -314,37 +303,38 @@ class LabelPropagationInitialPartitioner : public IInitialPartitioner,
     const HypernodeWeight hn_weight = _hg.nodeWeight(hn);
     PartitionID max_part = source_part;
     Gain max_score = 0;
-    for (auto& target_part : _tmp_scores) {
-      if (target_part.key == source_part) {
-        continue;
-      }
-      target_part.value -= internal_weight;
+    _valid_parts.set(source_part, false);
+    for (PartitionID target_part = 0; target_part < _config.initial_partitioning.k; ++target_part) {
+      if (_valid_parts[target_part]) {
+        ASSERT(target_part != source_part, V(target_part));
+        _tmp_scores[target_part] -= internal_weight;
 
-      ASSERT([&]() {
-          ds::FastResetFlagArray<> bv(_hg.initialNumNodes());
-          Gain gain = GainComputation::calculateGain(_hg, hn, target_part.key, bv);
-          if (target_part.value != gain) {
-            LOGVAR(hn);
-            LOGVAR(_hg.partID(hn));
-            LOGVAR(target_part.key);
-            LOGVAR(target_part.value);
-            LOGVAR(gain);
-            for (const HyperedgeID he : _hg.incidentEdges(hn)) {
-              _hg.printEdgeState(he);
+        ASSERT([&]() {
+            ds::FastResetFlagArray<> bv(_hg.initialNumNodes());
+            Gain gain = GainComputation::calculateGain(_hg, hn, target_part, bv);
+            if (_tmp_scores[target_part] != gain) {
+              LOGVAR(hn);
+              LOGVAR(_hg.partID(hn));
+              LOGVAR(target_part);
+              LOGVAR(_tmp_scores[target_part]);
+              LOGVAR(gain);
+              for (const HyperedgeID he : _hg.incidentEdges(hn)) {
+                _hg.printEdgeState(he);
+              }
+              return false;
             }
-            return false;
-          }
-          return true;
-        } (), "Calculated gain is invalid");
+            return true;
+          } (), "Calculated gain is invalid");
 
-      if (_hg.partWeight(target_part.key) + hn_weight
-          <= _config.initial_partitioning.upper_allowed_partition_weight[target_part.key] &&
-          _hg.partSize(source_part) - 1 > 0) {
-        if (target_part.value > max_score) {
-          max_score = target_part.value;
-          max_part = target_part.key;
+        if (_hg.partWeight(target_part) + hn_weight
+            <= _config.initial_partitioning.upper_allowed_partition_weight[target_part]) {
+          if (_tmp_scores[target_part] > max_score) {
+            max_score = _tmp_scores[target_part];
+            max_part = target_part;
+          }
         }
       }
+      _tmp_scores[target_part] = 0;
     }
 
     return std::make_pair(max_part, max_score);
@@ -385,7 +375,7 @@ class LabelPropagationInitialPartitioner : public IInitialPartitioner,
       if (assigned_nodes == k) {
         break;
       } else if (_bfs_queue.empty()) {
-        const HypernodeID unassigned = getUnassignedNode2();
+        const HypernodeID unassigned = getUnassignedNode();
         if (unassigned == kInvalidNode) {
           break;
         } else {
@@ -407,28 +397,13 @@ class LabelPropagationInitialPartitioner : public IInitialPartitioner,
     _hg.setNodePart(hn, p);
   }
 
-  HypernodeID getUnassignedNode2() {
-    HypernodeID unassigned_node = kInvalidNode;
-    for (size_t i = 0; i < _unassigned_node_bound; ++i) {
-      HypernodeID hn = _unassigned_nodes[i];
-      if (_hg.partID(hn) == _config.initial_partitioning.unassigned_part) {
-        unassigned_node = hn;
-        break;
-      } else {
-        std::swap(_unassigned_nodes[i--], _unassigned_nodes[--_unassigned_node_bound]);
-      }
-    }
-    return unassigned_node;
-  }
-
   using InitialPartitionerBase::_hg;
   using InitialPartitionerBase::_config;
   using InitialPartitionerBase::kInvalidNode;
   using InitialPartitionerBase::kInvalidPart;
+
+  ds::FastResetFlagArray<> _valid_parts;
   ds::FastResetFlagArray<> _in_queue;
-  ds::SparseMap<PartitionID, Gain> _tmp_scores;
-  std::vector<HypernodeID> _unassigned_nodes;
-  std::vector<HypernodeID> _unconnected_nodes;
-  unsigned int _unassigned_node_bound;
+  std::vector<Gain> _tmp_scores;
 };
 }  // namespace kahypar

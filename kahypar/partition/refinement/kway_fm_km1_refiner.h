@@ -97,29 +97,23 @@ class KWayKMinusOneRefiner final : public IRefiner,
   KWayKMinusOneRefiner& operator= (KWayKMinusOneRefiner&&) = delete;
 
  private:
-#ifdef USE_BUCKET_PQ
   void initializeImpl(const HyperedgeWeight max_gain) override final {
     if (!_is_initialized) {
+#ifdef USE_BUCKET_QUEUE
       _pq.initialize(_hg.initialNumNodes(), max_gain);
-      _is_initialized = true;
-    }
-    _gain_cache.clear();
-    initializeGainCache();
-  }
 #else
-  void initializeImpl() override final {
-    if (!_is_initialized) {
+      (void)max_gain;
       _pq.initialize(_hg.initialNumNodes());
+#endif
       _is_initialized = true;
     }
     _gain_cache.clear();
     initializeGainCache();
   }
-#endif
 
   bool refineImpl(std::vector<HypernodeID>& refinement_nodes,
-                  const std::array<HypernodeWeight, 2>& UNUSED(max_allowed_part_weights),
-                  const UncontractionGainChanges& UNUSED(changes),
+                  const std::array<HypernodeWeight, 2>&,
+                  const UncontractionGainChanges&,
                   Metrics& best_metrics) override final {
     // LOG("=================================================");
     ASSERT(best_metrics.km1 == metrics::km1(_hg),

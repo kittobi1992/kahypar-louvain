@@ -20,8 +20,6 @@
 
 #pragma once
 
-#include <x86intrin.h>
-
 #include <algorithm>
 #include <limits>
 #include <utility>
@@ -41,28 +39,35 @@ class IncidenceSet {
 
  public:
   explicit IncidenceSet(const T max_size) :
-    _memory(nullptr),
+    _dense(nullptr),
     _end(nullptr),
+    _sparse(nullptr),
     _size(0),
-    _max_size(math::nextPowerOfTwoCeiled(max_size + 1)),
-    _max_sparse_size(InitialSizeFactor * _max_size) {
-    static_assert(std::is_pod<T>::value, "T is not a POD");
-    _memory = static_cast<T*>(malloc(sizeOfDense() + sizeOfSparse()));
-    _end = _memory;
+    _max_sparse_size(0) {
+    const size_t internal_size = math::nextPowerOfTwoCeiled(max_size + 1);
+    _max_sparse_size = InitialSizeFactor * internal_size;
 
-    for (T i = 0; i < _max_size; ++i) {
-      new(dense() + i)T(std::numeric_limits<T>::max());
+    static_assert(std::is_pod<T>::value, "T is not a POD");
+    _dense = static_cast<T*>(malloc(sizeOfDense(internal_size) + sizeOfSparse()));
+    _end = _dense;
+
+    for (T i = 0; i < internal_size; ++i) {
+      new(_dense + i)T(std::numeric_limits<T>::max());
     }
     // sentinel for peek() operation of incidence set
-    new(dense() + _max_size)T(std::numeric_limits<T>::max());
+    new(_dense + internal_size)T(std::numeric_limits<T>::max());
 
+    _sparse = reinterpret_cast<Element*>(_dense + internal_size + 1);
     for (T i = 0; i < _max_sparse_size; ++i) {
-      new (sparse() + i)Element(empty, empty);
+      new (_sparse + i)Element(empty, empty);
     }
   }
 
+  IncidenceSet() :
+    IncidenceSet(5) { }
+
   ~IncidenceSet() {
-    free(_memory);
+    free(_dense);
   }
 
   IncidenceSet(const IncidenceSet& other) = delete;
@@ -71,27 +76,26 @@ class IncidenceSet {
   IncidenceSet& operator= (IncidenceSet&&) = delete;
 
   IncidenceSet(IncidenceSet&& other) :
-    _memory(other._memory),
+    _dense(other._dense),
     _end(other._end),
+    _sparse(other._sparse),
     _size(other._size),
-    _max_size(other._max_size),
     _max_sparse_size(other._max_sparse_size) {
     other._end = nullptr;
-    other._max_size = 0;
-    other._size = 0;
-    other._memory = nullptr;
+    other._sparse = nullptr;
+    other._dense = nullptr;
   }
 
   void add(const T element) {
     ASSERT(!contains(element), V(element));
-    if (_size == _max_size) {
+    if (_end == reinterpret_cast<T*>(_sparse)) {
       resize();
     }
 
     insert(element, _size);
-    dense()[_size] = element;
-    ++_size;
+    *_end = element;
     ++_end;
+    ++_size;
   }
 
   void insertIfNotContained(const T element) {
@@ -102,9 +106,9 @@ class IncidenceSet {
 
   void undoRemoval(const T element) {
     insert(element, _size);
-    dense()[_size] = element;
-    ++_size;
+    *_end = element;
     ++_end;
+    ++_size;
   }
 
   void remove(const T v) {
@@ -112,9 +116,9 @@ class IncidenceSet {
     ASSERT(contains(v), V(v));
 
     // swap v with element at end
-    Element& sparse_v = sparse()[find(v)];
-    swap(dense()[sparse_v.second], dense()[_size - 1]);
-    update(dense()[sparse_v.second], sparse_v.second);
+    Element& sparse_v = _sparse[find(v)];
+    swap(_dense[sparse_v.second], *(_end - 1));
+    update(_dense[sparse_v.second], sparse_v.second);
 
     // delete v
     sparse_v.first = deleted;
@@ -128,16 +132,16 @@ class IncidenceSet {
     ASSERT(contains(v), V(v));
 
     // swap v with element at end
-    Element& sparse_v = sparse()[find(v)];
-    swap(dense()[sparse_v.second], dense()[_size - 1]);
-    update(dense()[sparse_v.second], sparse_v.second);
+    Element& sparse_v = _sparse[find(v)];
+    swap(_dense[sparse_v.second], *(_end - 1));
+    update(_dense[sparse_v.second], sparse_v.second);
 
     // delete v
     sparse_v.first = deleted;
 
     // add u at v's place in dense
     insert(u, _size - 1);
-    dense()[_size - 1] = u;
+    *(_end - 1) = u;
   }
 
   T peek() const {
@@ -151,32 +155,49 @@ class IncidenceSet {
     ASSERT(contains(u), V(u));
 
     // remove u
-    Element& sparse_u = sparse()[find(u)];
+    Element& sparse_u = _sparse[find(u)];
     sparse_u.first = deleted;
 
     // replace u with v in dense
     insert(v, sparse_u.second);
-    dense()[sparse_u.second] = v;
+    _dense[sparse_u.second] = v;
   }
 
   void swap(IncidenceSet& other) {
     using std::swap;
-    swap(_memory, other._memory);
+    swap(_dense, other._dense);
     swap(_end, other._end);
+    swap(_sparse, other._sparse);
     swap(_size, other._size);
-    swap(_max_size, other._max_size);
+    swap(_max_sparse_size, other._max_sparse_size);
   }
 
-  bool contains(const T key) const {
-    const Position start_position = math::crc32(key) % _max_sparse_size;
-    const Position before = mod(static_cast<std::uint32_t>(start_position) - 1, _max_sparse_size);
-    for (Position position = start_position; position < _max_sparse_size; position = (position + 1) % _max_sparse_size) {
-      if (sparse()[position].first == empty) {
-        return false;
-      } else if (sparse()[position].first == key) {
-        return true;
-      } else if (position == before) {
-        return false;
+  bool contains(const T key) {
+    const Position start_position = startPosition(key);
+    const T occupying_key = _sparse[start_position].first;
+    if (occupying_key == key) {
+      return true;
+    } else {
+      // We use the element key at start_position as sentinel for the
+      // circular linear probing search. The sentinel is necessary,
+      // because we cannot ensure that there always is at least one
+      // empty slot. All 'unused' slots can potentially be marked as deleted.
+      _sparse[start_position].first = key;
+      Position position = nextPosition(start_position);
+      for ( ; ; ) {
+        if (_sparse[position].first == key) {
+          _sparse[start_position].first = occupying_key;
+          if (position != start_position) {
+            return true;
+          } else {
+            return false;
+          }
+        }
+        if (_sparse[position].first == empty) {
+          _sparse[start_position].first = occupying_key;
+          return false;
+        }
+        position = nextPosition(position);
       }
     }
   }
@@ -186,7 +207,7 @@ class IncidenceSet {
   }
 
   const T* begin() const {
-    return dense();
+    return _dense;
   }
 
   const T* end() const {
@@ -194,7 +215,7 @@ class IncidenceSet {
   }
 
   T capacity() const {
-    return _max_size;
+    return reinterpret_cast<T*>(_sparse) - _dense - 1;
   }
 
   void printAll() const {
@@ -206,79 +227,70 @@ class IncidenceSet {
  private:
   void insert(const T key, const T value) {
     ASSERT(!contains(key), V(key));
-    sparse()[nextFreeSlot(key)] = { key, value };
+    _sparse[nextFreeSlot(key)] = { key, value };
   }
 
   void update(const T key, const T value) {
     ASSERT(contains(key), V(key));
-    ASSERT(sparse()[find(key)].first == key, V(key));
-    sparse()[find(key)].second = value;
+    ASSERT(_sparse[find(key)].first == key, V(key));
+    _sparse[find(key)].second = value;
   }
 
 
-  Position find(const T key) const {
-    const Position start_position = math::crc32(key) % _max_sparse_size;
-    for (Position position = start_position; position < _max_sparse_size; position = (position + 1) % _max_sparse_size) {
-      if (sparse()[position].first == key) {
+  Position find(const T key) {
+    ASSERT(contains(key), V(key));
+    Position position = startPosition(key);
+    for ( ; ; ) {
+      if (_sparse[position].first == key) {
         return position;
       }
+      position = nextPosition(position);
     }
-    return std::numeric_limits<Position>::max();
   }
 
   Position nextFreeSlot(const T key) const {
-    const Position start_position = math::crc32(key) % _max_sparse_size;
-    for (Position position = start_position; position < _max_sparse_size; position = (position + 1) % _max_sparse_size) {
-      if (sparse()[position].first >= deleted) {
-        ASSERT(sparse()[position].first == empty || sparse()[position].first == deleted, V(position));
+    Position position = startPosition(key);
+    for ( ; ; ) {
+      if (_sparse[position].first >= deleted) {
+        ASSERT(_sparse[position].first == empty || _sparse[position].first == deleted,
+               V(position));
         return position;
       }
+      position = nextPosition(position);
     }
-    ASSERT(true == false, "This should never happen.");
   }
 
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Position nextPosition(const Position position) const {
+    return (position + 1) & (_max_sparse_size - 1);
+  }
 
-  constexpr size_t sizeOfDense() const {
-    return (_max_size + 1  /*sentinel for peek */) * sizeof(T);
+  KAHYPAR_ATTRIBUTE_ALWAYS_INLINE Position startPosition(const T key) const {
+    ASSERT((_max_sparse_size & (_max_sparse_size - 1)) == 0,
+           V(_max_sparse_size) << "is no power of 2");
+    return math::identity(key) & (_max_sparse_size - 1);
+  }
+
+  size_t sizeOfDense(const size_t max_size) const {
+    return (max_size + 1  /*sentinel for peek */) * sizeof(T);
   }
 
   constexpr size_t sizeOfSparse() const {
-    return _max_sparse_size * sizeof(std::pair<T, T>);
+    return _max_sparse_size * sizeof(Element);
   }
 
 
   void resize() {
-    IncidenceSet new_set(_max_size + 1);
+    IncidenceSet new_set((_max_sparse_size / 2) + 1);
     for (const auto e : * this) {
       new_set.add(e);
     }
     swap(new_set);
   }
 
-  T* dense() {
-    return _memory;
-  }
-
-  const T* dense() const {
-    return _memory;
-  }
-
-  Element* sparse() {
-    return reinterpret_cast<Element*>(dense() + _max_size + 1);
-  }
-
-  const Element* sparse() const {
-    return reinterpret_cast<const Element*>(dense() + _max_size + 1);
-  }
-
-  std::int32_t mod(std::int32_t a, std::int32_t b) const {
-    return (a % b + b) % b;
-  }
-
-  T* _memory;
+  T* _dense;
   T* _end;
+  Element* _sparse;
   T _size;
-  T _max_size;
   T _max_sparse_size;
 };
 }  // namespace ds

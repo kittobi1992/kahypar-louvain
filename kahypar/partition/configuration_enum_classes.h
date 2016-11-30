@@ -24,30 +24,24 @@
 #include <string>
 
 namespace kahypar {
-enum class Mode : std::uint8_t {
+enum class Mode : uint8_t {
   recursive_bisection,
   direct_kway
 };
 
-enum class InitialPartitioningTechnique : std::uint8_t {
+enum class InitialPartitioningTechnique : uint8_t {
   multilevel,
   flat
 };
 
-enum class InitialPartitioner : std::uint8_t {
-  hMetis,
-  PaToH,
-  KaHyPar
-};
-
-enum class CoarseningAlgorithm : std::uint8_t {
+enum class CoarseningAlgorithm : uint8_t {
   heavy_full,
   heavy_lazy,
   ml_style,
   do_nothing
 };
 
-enum class RefinementAlgorithm : std::uint8_t {
+enum class RefinementAlgorithm : uint8_t {
   twoway_fm,
   kway_fm,
   kway_fm_maxgain,
@@ -56,7 +50,7 @@ enum class RefinementAlgorithm : std::uint8_t {
   do_nothing
 };
 
-enum class InitialPartitionerAlgorithm : std::uint8_t {
+enum class InitialPartitionerAlgorithm : uint8_t {
   greedy_sequential,
   greedy_global,
   greedy_round,
@@ -72,11 +66,9 @@ enum class InitialPartitionerAlgorithm : std::uint8_t {
   pool
 };
 
-enum class RefinementStoppingRule : std::uint8_t {
+enum class RefinementStoppingRule : uint8_t {
   simple,
   adaptive_opt,
-  adaptive1,
-  adaptive2
 };
 
 enum class GlobalRebalancingMode : bool {
@@ -84,7 +76,7 @@ enum class GlobalRebalancingMode : bool {
   on
 };
 
-enum class Objective : std::uint8_t {
+enum class Objective : uint8_t {
   cut,
   km1
 };
@@ -116,18 +108,6 @@ static std::string toString(const InitialPartitioningTechnique& technique) {
       return std::string("flat");
     case InitialPartitioningTechnique::multilevel:
       return std::string("multilevel");
-  }
-  return std::string("UNDEFINED");
-}
-
-static std::string toString(const InitialPartitioner& algo) {
-  switch (algo) {
-    case InitialPartitioner::hMetis:
-      return std::string("hMetis");
-    case InitialPartitioner::PaToH:
-      return std::string("PaToH");
-    case InitialPartitioner::KaHyPar:
-      return std::string("KaHyPar");
   }
   return std::string("UNDEFINED");
 }
@@ -202,10 +182,6 @@ static std::string toString(const RefinementStoppingRule& algo) {
       return std::string("simple");
     case RefinementStoppingRule::adaptive_opt:
       return std::string("adaptive_opt");
-    case RefinementStoppingRule::adaptive1:
-      return std::string("adaptive1");
-    case RefinementStoppingRule::adaptive2:
-      return std::string("adaptive2");
   }
   return std::string("UNDEFINED");
 }
@@ -226,10 +202,6 @@ static RefinementStoppingRule stoppingRuleFromString(const std::string& rule) {
     return RefinementStoppingRule::simple;
   } else if (rule == "adaptive_opt") {
     return RefinementStoppingRule::adaptive_opt;
-  } else if (rule == "adaptive1") {
-    return RefinementStoppingRule::adaptive1;
-  } else if (rule == "adaptive2") {
-    return RefinementStoppingRule::adaptive2;
   }
   std::cout << "No valid stopping rule for FM." << std::endl;
   exit(0);
@@ -297,19 +269,6 @@ static InitialPartitionerAlgorithm initialPartitioningAlgorithmFromString(const 
   std::cout << "Illegal option:" << mode << std::endl;
   exit(0);
   return InitialPartitionerAlgorithm::greedy_global;
-}
-
-static InitialPartitioner initialPartitionerFromString(const std::string& algo) {
-  if (algo == "hMetis") {
-    return InitialPartitioner::hMetis;
-  } else if (algo == "PaToH") {
-    return InitialPartitioner::PaToH;
-  } else if (algo == "KaHyPar") {
-    return InitialPartitioner::KaHyPar;
-  }
-  std::cout << "Illegal option:" << algo << std::endl;
-  exit(0);
-  return InitialPartitioner::KaHyPar;
 }
 
 static InitialPartitioningTechnique inititalPartitioningTechniqueFromString(const std::string& technique) {

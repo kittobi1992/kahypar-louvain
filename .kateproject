@@ -1,0 +1,5 @@
+{
+	"name": "KaHyPar",
+	"directory": "/home/theuer/Dokumente/kahypar/",
+	"files": [ { "filters": [ "*.cpp", "*.hpp", "*.cc", "*.h", "*.py", "*.sh", "*.ini", "*.txt", "*.hgr", "*.graph"] } ]
+}

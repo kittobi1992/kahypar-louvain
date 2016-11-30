@@ -144,7 +144,7 @@ class GenericHypergraph {
     //! Number of nets \f$e \in I(v)\f$ with \f$\lambda(e) > 1 \f$
     HyperedgeID num_incident_cut_hes = 0;
     //! State during local search: inactive/active/marked
-    std::uint32_t state = 0;
+    uint32_t state = 0;
   };
 
   //! A dummy data structure that is used in GenericHypergraph::changeNodePart
@@ -381,7 +381,7 @@ class GenericHypergraph {
 
 
   //! The data type used to incident nets of vertices and pins of nets
-  using VertexID = std::uint32_t;
+  using VertexID = uint32_t;
   //! The data type for hypernodes
   using Hypernode = HypergraphElement<HypernodeTraits, AdditionalHypernodeData>;
   //! The data type for hyperedges
@@ -590,11 +590,31 @@ class GenericHypergraph {
     }
   }
 
-  GenericHypergraph(const GenericHypergraph&) = delete;
-  GenericHypergraph& operator= (const GenericHypergraph&) = delete;
+  GenericHypergraph() :
+    _num_hypernodes(0),
+    _num_hyperedges(0),
+    _num_pins(0),
+    _total_weight(0),
+    _k(2),
+    _type(Type::Unweighted),
+    _current_num_hypernodes(0),
+    _current_num_hyperedges(0),
+    _current_num_pins(0),
+    _threshold_active(1),
+    _threshold_marked(2),
+    _hypernodes(),
+    _hyperedges(),
+    _incidence_array(),
+    _part_info(_k),
+    _pins_in_part(),
+    _connectivity_sets(),
+    _hes_not_containing_u() { }
 
   GenericHypergraph(GenericHypergraph&&) = default;
-  GenericHypergraph& operator= (GenericHypergraph&&) = delete;
+  GenericHypergraph& operator= (GenericHypergraph&&) = default;
+
+  GenericHypergraph(const GenericHypergraph&) = delete;
+  GenericHypergraph& operator= (const GenericHypergraph&) = delete;
 
   /*!
    * Debug information:
@@ -793,24 +813,25 @@ class GenericHypergraph {
     // This behavior is necessary in order to be able to use the old entries during uncontraction.
     bool first_call = true;
 
-    PinHandleIterator slot_of_u, last_pin_slot;
-    PinHandleIterator pins_begin, pins_end;
     // Use index-based iteration because case 2 might lead to reallocation!
     for (HyperedgeID he_it = hypernode(v).firstEntry(); he_it != hypernode(v).firstInvalidEntry();
          ++he_it) {
-      std::tie(pins_begin, pins_end) = pinHandles(_incidence_array[he_it]);
-      ASSERT(pins_begin != pins_end, "Hyperedge " << _incidence_array[he_it] << " is empty");
-      slot_of_u = last_pin_slot = pins_end - 1;
-      for (PinHandleIterator pin_iter = pins_begin; pin_iter != last_pin_slot; ++pin_iter) {
-        if (*pin_iter == v) {
-          swap(*pin_iter, *last_pin_slot);
+      const HypernodeID pins_begin = hyperedge(_incidence_array[he_it]).firstEntry();
+      const HypernodeID pins_end = hyperedge(_incidence_array[he_it]).firstInvalidEntry();
+      HypernodeID slot_of_u = pins_end - 1;
+      HypernodeID last_pin_slot = pins_end - 1;
+
+      for (HypernodeID pin_iter = pins_begin; pin_iter != last_pin_slot; ++pin_iter) {
+        const HypernodeID pin = _incidence_array[pin_iter];
+        if (pin == v) {
+          swap(_incidence_array[pin_iter], _incidence_array[last_pin_slot]);
           --pin_iter;
-        } else if (*pin_iter == u) {
+        } else if (pin == u) {
           slot_of_u = pin_iter;
         }
       }
 
-      ASSERT(*last_pin_slot == v, "v is not last entry in adjacency array!");
+      ASSERT(_incidence_array[last_pin_slot] == v, "v is not last entry in adjacency array!");
 
       if (slot_of_u != last_pin_slot) {
         // Case 1:
@@ -1444,13 +1465,13 @@ class GenericHypergraph {
    *
    */
   HypernodeID currentNumNodes() const {
-    ASSERT([&]() {
-          HypernodeID count = 0;
-          for (const HypernodeID hn : nodes()) {
-            ++count;
-          }
-          return count == _current_num_hypernodes;
-        } ());
+   ASSERT([&]() {
+       HypernodeID count = 0;
+       for (const HypernodeID hn : nodes()) {
+         ++count;
+       }
+       return count == _current_num_hypernodes;
+     } ());
     return _current_num_hypernodes;
   }
 
@@ -1542,7 +1563,7 @@ class GenericHypergraph {
 
   //! Resets the state of all hypernodes to inactive and unmarked.
   void resetHypernodeState() {
-    if (_threshold_marked == std::numeric_limits<std::uint32_t>::max()) {
+    if (_threshold_marked == std::numeric_limits<uint32_t>::max()) {
       for (HypernodeID hn = 0; hn < _num_hypernodes; ++hn) {
         hypernode(hn).state = 0;
       }
@@ -1647,31 +1668,6 @@ class GenericHypergraph {
   FRIEND_TEST(AHypergraph, ExtractedFromAPartitionedHypergraphHasInitializedPartitionInformation);
   FRIEND_TEST(AHypergraph, RemovesEmptyHyperedgesOnHypernodeIsolation);
   FRIEND_TEST(AHypergraph, RestoresRemovedEmptyHyperedgesOnRestoreOfIsolatedHypernodes);
-
-  /*!
-   * Default constructor is private, because we do not allow the user to create
-   * empty hypergraphs. However the functions extractPartAsUnpartitionedHypergraphForBisection
-   * and reindex internally use default constructed hypergraphs.
-   */
-  GenericHypergraph() :
-    _num_hypernodes(0),
-    _num_hyperedges(0),
-    _num_pins(0),
-    _total_weight(0),
-    _k(2),
-    _type(Type::Unweighted),
-    _current_num_hypernodes(0),
-    _current_num_hyperedges(0),
-    _current_num_pins(0),
-    _threshold_active(1),
-    _threshold_marked(2),
-    _hypernodes(),
-    _hyperedges(),
-    _incidence_array(),
-    _part_info(_k),
-    _pins_in_part(),
-    _connectivity_sets(),
-    _hes_not_containing_u() { }
 
   /*!
    * Returns true if hypernode is a border-node.
@@ -1948,9 +1944,9 @@ class GenericHypergraph {
   HypernodeID _current_num_pins;
 
   //! Current threshold value to indicate an active hypernode
-  std::uint32_t _threshold_active;
+  uint32_t _threshold_active;
   //! Current threshold value to indicate a marked hypernode
-  std::uint32_t _threshold_marked;
+  uint32_t _threshold_marked;
 
   //! The hypernodes of the hypergraph
   std::vector<Hypernode> _hypernodes;
