@@ -92,7 +92,7 @@ class MLCoarsener final : public ICoarsener,
       LOGVAR(_hg.currentNumEdges());
       
       if(_config.preprocessing.use_louvain && !ignoreCommunities) {
-        performLouvainCommunityDetection();
+        performLouvainCommunityDetection(pass_nr);
       }
 
       already_matched.reset();
@@ -155,7 +155,7 @@ class MLCoarsener final : public ICoarsener,
     //abort();
   }
   
-  void performLouvainCommunityDetection() {
+  void performLouvainCommunityDetection(const int pass_nr) {
       if(_config.preprocessing.use_multilevel_louvain || !_louvain.wasAlreadyExecuted()) {
           HighResClockTimepoint start = std::chrono::high_resolution_clock::now();
           std::set<ClusterID> distinct_comm;
@@ -167,9 +167,15 @@ class MLCoarsener final : public ICoarsener,
           HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
           std::chrono::duration<double> elapsed_seconds = end - start;
           LOG("Louvain-Time: " << elapsed_seconds.count() << "s");
-          Stats::instance().addToTotal(_config,"louvainTime",elapsed_seconds.count());
-          Stats::instance().addToTotal(_config,"communities",distinct_comm.size()-Stats::instance().get("communities"));
-          Stats::instance().addToTotal(_config,"modularity",quality-Stats::instance().get("modularity")); 
+          Stats::instance().addToTotal(_config,"louvain_pass_"+std::to_string(pass_nr)+"louvainTime",elapsed_seconds.count());
+          Stats::instance().addToTotal(_config,"louvain_pass_"+std::to_string(pass_nr)+"communities",distinct_comm.size());
+          Stats::instance().addToTotal(_config,"louvain_pass_"+std::to_string(pass_nr)+"modularity",quality); 
+          for(HypernodeID hn : _hg.nodes()) {
+              Stats::instance().addToTotal(_config,"louvain_pass_"+std::to_string(pass_nr)+"_comm_"+std::to_string(_comm[hn]),_hg.nodeWeight(hn));
+          }
+          for(ClusterID cid : distinct_comm) {
+              LOG("Community " << cid << " Size = " << Stats::instance().get("louvain_pass_"+std::to_string(pass_nr)+"_comm_"+std::to_string(cid)));
+          }
       }
   }
 
