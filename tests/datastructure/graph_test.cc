@@ -171,7 +171,7 @@ TEST_F(ABipartiteGraph, DeterminesIncidentClusterWeightsCorrectAfterSomeNodesHas
         ASSERT_TRUE(incident_cluster[c_id]);
         ASSERT_EQ(cluster_weight[c_id],weight);
     }
-}
+} 
 
 TEST_F(ACliqueGraph, DeterminesIncidentClusterWeightsCorrectAfterSomeNodesHasChangedTheirCluster) {
     NodeID node = 3;
@@ -183,7 +183,7 @@ TEST_F(ACliqueGraph, DeterminesIncidentClusterWeightsCorrectAfterSomeNodesHasCha
         ClusterID c_id = incidentClusterWeight.clusterID;
         EdgeWeight weight = incidentClusterWeight.weight;
         ASSERT_TRUE(incident_cluster[c_id]);
-        ASSERT_LE(abs(cluster_weight[c_id]-weight), EPS);
+        ASSERT_LE(std::abs(cluster_weight[c_id]-weight), EPS);
     }
 }
 
@@ -473,7 +473,7 @@ TEST_F(ABipartiteGraph, ReturnCorrectContractedGraphWithUnionFind) {
     std::vector<EdgeWeight> weightNode2 = {0.0L,0.0L,0.0L,0.0L,0.5L,1.0L/3.0,0.0L};
     cnt = 0;
     for(Edge e : contractedGraph.adjacentNodes(2)) {
-        ASSERT_LE(abs(weightNode2[e.targetNode]-e.weight),EPS);
+        ASSERT_LE(std::abs(weightNode2[e.targetNode]-e.weight),EPS);
         cnt++;
     }
     ASSERT_EQ(cnt,2);
@@ -481,7 +481,7 @@ TEST_F(ABipartiteGraph, ReturnCorrectContractedGraphWithUnionFind) {
     std::vector<EdgeWeight> weightNode3 = {0.0L,0.0L,0.0L,0.0L,0.0L,1.0L/3.0,2.0L/3.0L};
     cnt = 0;
     for(Edge e : contractedGraph.adjacentNodes(3)) {
-        ASSERT_LE(abs(weightNode3[e.targetNode]-e.weight),EPS);
+        ASSERT_LE(std::abs(weightNode3[e.targetNode]-e.weight),EPS);
         cnt++;
     }
     ASSERT_EQ(cnt,2);
@@ -540,18 +540,18 @@ TEST_F(ACliqueGraph, ReturnCorrectContractedGraphWithUnionFind) {
     
     Graph contractedGraph(graph->contractGraphWithUnionFind());
     
-    std::vector<EdgeWeight> weightNode0 = {2.0L,0.5L,1.0L/3.0L,2.0L/3.0L};
+    std::vector<EdgeWeight> weightNode0 = {2.0L,1.0L/6.0L,1.0L/3.0L,2.0L/3.0L};
     size_t cnt = 0;
     for(Edge e : contractedGraph.adjacentNodes(0)) {
-        ASSERT_LE(abs(weightNode0[e.targetNode]-e.weight),EPS);
+        ASSERT_LE(std::abs(weightNode0[e.targetNode]-e.weight),EPS);
         cnt++;
     }
     ASSERT_EQ(cnt,4);
     
-    std::vector<EdgeWeight> weightNode2 = {1.0L/3.0L,2.0L/3.0L,2.0L/3.0L,1.0L/3.0L};
+    std::vector<EdgeWeight> weightNode2 = {1.0L/3.0L,2.0L/3.0L,1.0L/3.0L,1.0L/3.0L};
     cnt = 0;
     for(Edge e : contractedGraph.adjacentNodes(2)) {
-        ASSERT_LE(abs(weightNode2[e.targetNode]-e.weight),EPS);
+        ASSERT_LE(std::abs(weightNode2[e.targetNode]-e.weight),EPS);
         cnt++;
     }
     ASSERT_EQ(cnt,4);
@@ -559,7 +559,7 @@ TEST_F(ACliqueGraph, ReturnCorrectContractedGraphWithUnionFind) {
     std::vector<EdgeWeight> weightNode3 = {2.0L/3.0L,1.0L/3.0L,1.0/3.0L,2.0L/3.0L};
     cnt = 0;
     for(Edge e : contractedGraph.adjacentNodes(3)) {
-        ASSERT_LE(abs(weightNode3[e.targetNode]-e.weight),EPS);
+        ASSERT_LE(std::abs(weightNode3[e.targetNode]-e.weight),EPS);
         cnt++;
     }
     ASSERT_EQ(cnt,4);
