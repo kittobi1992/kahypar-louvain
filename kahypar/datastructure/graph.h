@@ -82,7 +82,7 @@ public:
     Graph(const Hypergraph& hypergraph, const Configuration& config) 
                                         : _N(hypergraph.currentNumNodes()+(config.preprocessing.louvain_use_bipartite_graph ? hypergraph.currentNumEdges() : 0)),
                                           _config(config), _adj_array(_N+1), _nodes(_N), _shuffleNodes(_N), _edges(), 
-                                          _selfloop(_N,0.0L), _weightedDegree(_N,0.0L), _cluster_id(_N), 
+                                          _selfloop(_N,0.0L), _weightedDegree(_N,0.0L), _cluster_id(_N), _cluster_size(_N,1), _num_comm(_N),
                                           _incidentClusterWeight(_N,IncidentClusterWeight(0,0.0L)),
                                           _total_weight(0.0L), _posInIncidentClusterWeightVector(_N),
                                           _hypernodeMapping(hypergraph.initialNumNodes()+hypergraph.initialNumEdges(),INVALID_NODE),
@@ -100,7 +100,7 @@ public:
     
     Graph(const std::vector<NodeID>& adj_array, const std::vector<Edge>& edges, const Configuration& config) 
                 : _N(adj_array.size()-1), _config(config), _adj_array(adj_array), _nodes(_N), _shuffleNodes(_N), _edges(edges), _selfloop(_N,0.0L),
-                  _weightedDegree(_N,0.0L) , _cluster_id(_N), _incidentClusterWeight(_N,IncidentClusterWeight(0,0.0L)),
+                  _weightedDegree(_N,0.0L) , _cluster_id(_N), _cluster_size(_N,1), _num_comm(_N), _incidentClusterWeight(_N,IncidentClusterWeight(0,0.0L)),
                   _total_weight(0.0L), _posInIncidentClusterWeightVector(_N), _hypernodeMapping(_N,INVALID_NODE), _unionFind(_N)  {
         std::iota(_nodes.begin(),_nodes.end(),0);
         std::iota(_shuffleNodes.begin(),_shuffleNodes.end(),0);
@@ -120,12 +120,14 @@ public:
     
     Graph(const std::vector<NodeID>& adj_array, const std::vector<Edge>& edges, const std::vector<NodeID> hypernodeMapping, const std::vector<ClusterID> cluster_id, const Configuration& config) 
                 : _N(adj_array.size()-1), _config(config), _adj_array(adj_array), _nodes(_N), _shuffleNodes(_N), _edges(edges), _selfloop(_N,0.0L),
-                  _weightedDegree(_N,0.0L) , _cluster_id(cluster_id), _incidentClusterWeight(_N,IncidentClusterWeight(0,0.0L)),
+                  _weightedDegree(_N,0.0L) , _cluster_id(cluster_id), _cluster_size(_N,0), _num_comm(0), _incidentClusterWeight(_N,IncidentClusterWeight(0,0.0L)),
                   _total_weight(0.0L), _posInIncidentClusterWeightVector(_N), _hypernodeMapping(hypernodeMapping), _unionFind(_N)  {
         std::iota(_nodes.begin(),_nodes.end(),0);
         std::iota(_shuffleNodes.begin(),_shuffleNodes.end(),0);
         
         for(NodeID node : nodes()) {
+            if(_cluster_size[_cluster_id[node]] == 0) _num_comm++;
+            _cluster_size[_cluster_id[node]]++;
             for(Edge e : adjacentNodes(node)) {
                 if(node == e.targetNode) {
                     _selfloop[node] = e.weight;
@@ -138,14 +140,15 @@ public:
     
     Graph(Graph&& other) : _N(std::move(other._N)), _config(other._config), _adj_array(std::move(other._adj_array)), _nodes(std::move(other._nodes)),
                            _shuffleNodes(std::move(other._shuffleNodes)),_edges(std::move(other._edges)), _selfloop(std::move(other._selfloop)),
-                           _weightedDegree(std::move(other._weightedDegree)),_cluster_id(std::move(other._cluster_id)), 
-                           _incidentClusterWeight(_N,IncidentClusterWeight(0,0.0L)), _total_weight(std::move(other._total_weight)), 
+                           _weightedDegree(std::move(other._weightedDegree)),_cluster_id(std::move(other._cluster_id)), _cluster_size(std::move(other._cluster_size)),
+                           _num_comm(std::move(other._num_comm)), _incidentClusterWeight(_N,IncidentClusterWeight(0,0.0L)), _total_weight(std::move(other._total_weight)), 
                            _posInIncidentClusterWeightVector(std::move(other._posInIncidentClusterWeightVector)),
                            _hypernodeMapping(std::move(other._hypernodeMapping)), _unionFind(_N)  { }
     
     Graph(const Graph& other): _N(other._N), _config(other._config), _adj_array(other._adj_array), _nodes(other._nodes), _shuffleNodes(other._shuffleNodes),
                                _edges(other._edges), _selfloop(other._selfloop),
-                               _weightedDegree(other._weightedDegree),_cluster_id(other._cluster_id), _incidentClusterWeight(_N,IncidentClusterWeight(0,0.0L)),
+                               _weightedDegree(other._weightedDegree),_cluster_id(other._cluster_id),_cluster_size(other._cluster_size),
+                               _num_comm(other._num_comm),  _incidentClusterWeight(_N,IncidentClusterWeight(0,0.0L)),
                                _total_weight(other._total_weight), _posInIncidentClusterWeightVector(_N), _hypernodeMapping(other._hypernodeMapping), _unionFind(_N)   { }
                                
     Graph& operator=(Graph& other) {
@@ -157,6 +160,8 @@ public:
         _selfloop = other._selfloop;
         _weightedDegree = other._weightedDegree;
         _cluster_id = other._cluster_id;
+        _cluster_size = other._cluster_size;
+        _num_comm = other._num_comm;
         _incidentClusterWeight.assign(_N,IncidentClusterWeight(0,0.0L));
         _total_weight = other._total_weight;
         _posInIncidentClusterWeightVector = other._posInIncidentClusterWeightVector;
@@ -174,6 +179,8 @@ public:
         _selfloop = std::move(other._selfloop);
         _weightedDegree = std::move(other._weightedDegree);
         _cluster_id = std::move(other._cluster_id);
+        _cluster_size = std::move(other._cluster_size);
+        _num_comm = std::move(other._num_comm);
         _incidentClusterWeight.assign(_N,IncidentClusterWeight(0,0.0L));
         _total_weight = std::move(other._total_weight);
         _posInIncidentClusterWeightVector = other._posInIncidentClusterWeightVector;
@@ -249,6 +256,14 @@ public:
         return _cluster_id[_hypernodeMapping[N+he]];
     }
     
+    size_t numCommunities() const {
+      return _num_comm;
+    }
+    
+    size_t clusterSize(const ClusterID cid) const {
+      return _cluster_size[cid];
+    }
+    
     ClusterID clusterID(const NodeID node) const  {
         ASSERT(node < numNodes(), "NodeID " << node << " doesn't exist!");
         return _cluster_id[node];
@@ -256,7 +271,53 @@ public:
     
     void setClusterID(const NodeID node, const ClusterID c_id) {
         ASSERT(node < numNodes(), "NodeID " << node << " doesn't exist!");
-        _cluster_id[node] = c_id;
+        
+        ClusterID from = _cluster_id[node];
+        ClusterID to = c_id;
+        
+        if(from != -1 && from != to && _cluster_size[from] == 1 ) {
+          _num_comm--;
+        } 
+        if(to != -1 && from != to && _cluster_size[to] == 0) {
+          _num_comm++;
+        }
+        
+        if(to != -1) {
+          _cluster_size[to]++;
+        }
+        if(from != -1) {
+          _cluster_size[from]--; 
+        }
+        
+        _cluster_id[node] = to;
+        
+        ASSERT([&]() {
+          std::set<ClusterID> distinct_comm;
+          size_t from_size = 0; size_t to_size = 0;
+          
+          for(NodeID node : nodes()) {
+            if(clusterID(node) != -1) distinct_comm.insert(clusterID(node));
+            if(from != -1 && clusterID(node) == from) from_size++;
+            if(to != -1 && clusterID(node) == to) to_size++;
+          }
+          if(distinct_comm.size() != _num_comm) {
+            LOGVAR(_num_comm);
+            LOGVAR(distinct_comm.size());
+            return false;
+          }
+          else if(to != -1 && to_size != _cluster_size[to]) {
+            LOGVAR(to_size);
+            LOGVAR(_cluster_size[to]);
+            return false;
+          }
+          else if(from != -1 && from_size != _cluster_size[from]) {
+            LOGVAR(from_size);
+            LOGVAR(_cluster_size[from]);
+            return false;
+          }
+          return true;
+        }());
+        
     }
     
     void contractHypernodes(const HypernodeID u, const HypernodeID v) {
@@ -331,6 +392,8 @@ protected:
     std::vector<EdgeWeight> _selfloop;
     std::vector<EdgeWeight> _weightedDegree;
     std::vector<ClusterID> _cluster_id;
+    std::vector<size_t> _cluster_size;
+    size_t _num_comm;
     std::vector<IncidentClusterWeight> _incidentClusterWeight;
     EdgeWeight _total_weight;
     SparseMap<ClusterID,size_t> _posInIncidentClusterWeightVector;

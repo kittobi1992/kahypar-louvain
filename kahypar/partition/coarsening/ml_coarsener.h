@@ -168,15 +168,15 @@ class MLCoarsener final : public ICoarsener,
           HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
           std::chrono::duration<double> elapsed_seconds = end - start;
           LOG("Louvain-Time: " << elapsed_seconds.count() << "s");
-          Stats::instance().addToTotal(_config,"louvain_"+std::to_string(pass_nr)+"_louvainTime",elapsed_seconds.count());
-          Stats::instance().addToTotal(_config,"louvain_"+std::to_string(pass_nr)+"_communities",distinct_comm.size());
-          Stats::instance().addToTotal(_config,"louvain_"+std::to_string(pass_nr)+"_modularity",quality); 
-          for(HypernodeID hn : _hg.nodes()) {
+          Stats::instance().addToTotal(_config,/*"louvain_"+std::to_string(pass_nr)+"_*/"louvainTime",elapsed_seconds.count());
+          Stats::instance().addToTotal(_config,/*"louvain_"+std::to_string(pass_nr)+"_*/"communities",distinct_comm.size());
+          Stats::instance().addToTotal(_config,/*"louvain_"+std::to_string(pass_nr)+"_*/"modularity",quality); 
+          /*for(HypernodeID hn : _hg.nodes()) {
               Stats::instance().addToTotal(_config,"louvain_"+std::to_string(pass_nr)+"_comm_"+std::to_string(_comm[hn]),_hg.nodeWeight(hn));
           }
           for(ClusterID cid : distinct_comm) {
               LOG("Community " << cid << " Size = " << Stats::instance().get("louvain_"+std::to_string(pass_nr)+"_comm_"+std::to_string(cid)));
-          }
+          }*/
       }
   }
 

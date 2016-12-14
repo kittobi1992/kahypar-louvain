@@ -57,6 +57,7 @@ struct PreprocessingParameters {
   bool only_community_contraction_allowed = true;
   int max_louvain_pass_iterations = 10;
   long double min_eps_improvement = 0.01;
+  double community_limit = 0.5;
 };
 
 inline std::ostream& operator<< (std::ostream& str, const MinHashSparsifierParameters& params) {
@@ -107,6 +108,8 @@ inline std::ostream& operator<< (std::ostream& str, const PreprocessingParameter
   << params.louvain_contract_graph_like_hg << std::endl;
   str << "  allow only contraction in communities: " << std::boolalpha
   << params.only_community_contraction_allowed << std::endl;  
+  str << "  community limit: " << std::boolalpha
+  << params.community_limit << std::endl;  
   return str;
 }
 

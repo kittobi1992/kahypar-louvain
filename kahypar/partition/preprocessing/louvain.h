@@ -175,6 +175,8 @@ private:
     EdgeWeight louvain_pass(Graph& g, QualityMeasure& quality) {
         size_t node_moves = 0;
         int iterations = 0;
+        ClusterID community_limit = _config.coarsening.contraction_limit*_config.preprocessing.community_limit;
+        LOGVAR(community_limit);
         
         //TODO(heuer): Think about shuffling nodes before louvain pass
 
@@ -188,6 +190,10 @@ private:
                 EdgeWeight best_incident_cluster_weight = 0.0L;
                 EdgeWeight best_gain = 0.0L;
               
+                if(g.clusterSize(cur_cid) == 1 && g.numCommunities() <= community_limit) {
+                  continue;
+                }
+                
                 for(Edge e : g.adjacentNodes(node)) {
                     if(g.clusterID(e.targetNode) == cur_cid && e.targetNode != node) {
                         cur_incident_cluster_weight += e.weight;

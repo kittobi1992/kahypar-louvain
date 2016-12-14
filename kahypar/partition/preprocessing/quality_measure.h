@@ -20,7 +20,7 @@ using ds::Edge;
 using ds::FastResetFlagArray;
 #define EPS 1e-5
 
-const bool dbg_modularity_function = true;
+const bool dbg_modularity_function = false;
 
 class QualityMeasure {
 

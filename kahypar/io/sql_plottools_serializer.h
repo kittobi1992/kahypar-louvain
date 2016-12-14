@@ -82,6 +82,7 @@ static inline void serialize(const Configuration& config, const Hypergraph& hype
   << config.preprocessing.use_louvain_in_ip
   << " max_louvain_pass_iterations=" << config.preprocessing.max_louvain_pass_iterations
   << " min_louvain_eps_improvement=" << config.preprocessing.min_eps_improvement
+  << " community_limit=" << config.preprocessing.community_limit
   << " louvain_use_uniform_edge_weights=" << std::boolalpha
   << config.preprocessing.louvain_use_uniform_edge_weights
   << " use_multilevel_louvain=" << std::boolalpha
