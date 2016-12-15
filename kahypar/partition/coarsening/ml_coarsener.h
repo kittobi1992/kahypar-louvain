@@ -200,24 +200,46 @@ class MLCoarsener final : public ICoarsener,
 
     RatingType max_rating = std::numeric_limits<RatingType>::min();
     HypernodeID target = std::numeric_limits<HypernodeID>::max();
+    RatingType max_comm_rating = std::numeric_limits<RatingType>::min();
+    HypernodeID comm_target = std::numeric_limits<HypernodeID>::max();
     for (auto it = _tmp_ratings.end() - 1; it >= _tmp_ratings.begin(); --it) {
       const HypernodeID tmp_target = it->key;
       const RatingType tmp_rating = it->value;
       DBG(false, "r(" << u << "," << tmp_target << ")=" << tmp_rating);
-      if (_comm[u] == _comm[tmp_target] && acceptRating(tmp_rating, max_rating, target, tmp_target, already_matched)) {
+      if (acceptRating(tmp_rating, max_rating, target, tmp_target, already_matched)) {
         max_rating = tmp_rating;
         target = tmp_target;
       }
+      if(_comm[u] == _comm[tmp_target] && acceptRating(tmp_rating, max_comm_rating, comm_target, tmp_target, already_matched)) {
+        max_comm_rating = tmp_rating;
+        comm_target = tmp_target;
+      }
     }
-
     Rating ret;
-    if (max_rating != std::numeric_limits<RatingType>::min()) {
+    if (max_rating != std::numeric_limits<RatingType>::min() && max_comm_rating != std::numeric_limits<RatingType>::min()) {
       ASSERT(target != std::numeric_limits<HypernodeID>::max());
       ASSERT(_tmp_ratings[target] == max_rating, V(target));
-      ret.value = max_rating;
-      ret.target = target;
-      ret.valid = true;
-    }
+      ASSERT(comm_target != std::numeric_limits<HypernodeID>::max());
+      ASSERT(_tmp_ratings[comm_target] == max_comm_rating, V(target));
+      if(static_cast<double>(max_rating)/static_cast<double>(max_comm_rating) > _config.preprocessing.rating_threshold) {
+        Stats::instance().addToTotal(_config,"numInterCommunityContraction",1);
+        ret.value = max_rating;
+        ret.target = target;
+        ret.valid = true;
+      } else {
+        Stats::instance().addToTotal(_config,"numIntraCommunityContraction",1);
+        ret.value = max_comm_rating;
+        ret.target = comm_target;
+        ret.valid = true;  
+      }
+    } /*else if(max_rating != std::numeric_limits<RatingType>::min()) {
+        ASSERT(target != std::numeric_limits<HypernodeID>::max());
+        ASSERT(_tmp_ratings[target] == max_rating, V(target));
+        Stats::instance().addToTotal(_config,"numInterCommunityContraction",1);
+        ret.value = max_rating;
+        ret.target = target;
+        ret.valid = true;
+    }*/
 
     _tmp_ratings.clear();
 

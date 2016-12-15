@@ -320,11 +320,15 @@ void processCommandLineInput(Configuration& config, int argc, char* argv[]) {
      ("p-allow-contraction-only-in-communities",
       po::value<bool>(&config.preprocessing.only_community_contraction_allowed)->value_name("<bool>"),
       "If true, coarsener discards clustering, if the contraction limit is not reached.\n"
-      "(default: false)")
+      "(default: True)")
       ("p-community-limit",
      po::value<double>(&config.preprocessing.community_limit)->value_name("<double>"),
      "Minimum allowed communities are contraction_limit*community_limit.\n"
-     "(default: 0.5)");
+     "(default: 0.0)")
+      ("p-rating-threshold",
+     po::value<double>(&config.preprocessing.rating_threshold)->value_name("<double>"),
+     "If best_rating/best_comm_rating <= rating_threshold accept community rating, otherwise best rating.\n"
+     "(default: 1.0)");
 
   po::options_description coarsening_options("Coarsening Options", num_columns);
   coarsening_options.add_options()
