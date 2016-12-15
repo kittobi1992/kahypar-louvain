@@ -232,14 +232,14 @@ class MLCoarsener final : public ICoarsener,
         ret.target = comm_target;
         ret.valid = true;  
       }
-    } /*else if(max_rating != std::numeric_limits<RatingType>::min()) {
+    } else if(max_rating != std::numeric_limits<RatingType>::min()) {
         ASSERT(target != std::numeric_limits<HypernodeID>::max());
         ASSERT(_tmp_ratings[target] == max_rating, V(target));
         Stats::instance().addToTotal(_config,"numInterCommunityContraction",1);
         ret.value = max_rating;
         ret.target = target;
         ret.valid = true;
-    }*/
+    }
 
     _tmp_ratings.clear();
 
