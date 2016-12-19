@@ -490,10 +490,10 @@ private:
             }
             std::set<HyperedgeID> incident_edges;
             for(HyperedgeID he : hg.incidentEdges(hn)) {
-                incident_edges.insert(he);
+                incident_edges.insert(_hypernodeMapping[N + he]);
             }
             for(Edge e : adjacentNodes(_hypernodeMapping[hn])) {
-              HyperedgeID he = e.targetNode - N;
+              HyperedgeID he = e.targetNode;
               if(incident_edges.find(he) == incident_edges.end()) {
                 LOGVAR(_hypernodeMapping[hn]);
                 LOGVAR(he);
@@ -511,7 +511,7 @@ private:
             }
             std::set<HypernodeID> pins;
             for(HypernodeID hn : hg.pins(he)) {
-              pins.insert(hn);
+              pins.insert(_hypernodeMapping[hn]);
             }
             for(Edge e : adjacentNodes(_hypernodeMapping[he+N])) {
               if(pins.find(e.targetNode) == pins.end()) {
