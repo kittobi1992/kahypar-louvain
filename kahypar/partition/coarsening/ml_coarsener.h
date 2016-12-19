@@ -86,14 +86,16 @@ class MLCoarsener final : public ICoarsener,
     int pass_nr = 0;
     std::vector<HypernodeID> current_hns;
     ds::FastResetFlagArray<> already_matched(_hg.initialNumNodes());
+
+    if(_config.preprocessing.use_louvain && !ignoreCommunities) {
+      performLouvainCommunityDetection(pass_nr);
+    }
+
+    bool stop = false;
     while (_hg.currentNumNodes() > limit) {
       LOGVAR(pass_nr);
       LOGVAR(_hg.currentNumNodes());
       LOGVAR(_hg.currentNumEdges());
-      
-      if(_config.preprocessing.use_louvain && !ignoreCommunities) {
-        performLouvainCommunityDetection(pass_nr);
-      }
 
       already_matched.reset();
       current_hns.clear();
@@ -112,6 +114,7 @@ class MLCoarsener final : public ICoarsener,
           const Rating rating = contractionPartner(hn, already_matched);
 
           if (rating.target != kInvalidTarget) {
+            stop = false;
             already_matched.set(hn, true);
             already_matched.set(rating.target, true);
             
@@ -144,9 +147,14 @@ class MLCoarsener final : public ICoarsener,
           if(_config.preprocessing.use_louvain && !ignoreCommunities && !_config.preprocessing.only_community_contraction_allowed && _hg.currentNumNodes() >= 2*limit) {
             _comm.assign(_comm.size(),0);
             ignoreCommunities = true;
-          }
-          else {
-            break;
+          } else {
+            if (stop == true) {
+              break;
+            }
+            if(_config.preprocessing.use_louvain && !ignoreCommunities) {
+              performLouvainCommunityDetection(pass_nr);
+            }
+            stop = true;
           }
       }
 
@@ -165,6 +173,7 @@ class MLCoarsener final : public ICoarsener,
               _comm[hn] = _louvain.clusterID(hn);
             distinct_comm.insert(_comm[hn]);
           }
+          LOGVAR(distinct_comm.size());
           HighResClockTimepoint end = std::chrono::high_resolution_clock::now();
           std::chrono::duration<double> elapsed_seconds = end - start;
           LOG("Louvain-Time: " << elapsed_seconds.count() << "s");
@@ -221,7 +230,7 @@ class MLCoarsener final : public ICoarsener,
       ASSERT(_tmp_ratings[target] == max_rating, V(target));
       ASSERT(comm_target != std::numeric_limits<HypernodeID>::max());
       ASSERT(_tmp_ratings[comm_target] == max_comm_rating, V(target));
-      if(static_cast<double>(max_rating)/static_cast<double>(max_comm_rating) > _config.preprocessing.rating_threshold) {
+      if(static_cast<double>(max_rating)/static_cast<double>(max_comm_rating) > _config.preprocessing.rating_threshold && _config.preprocessing.rating_threshold < 10000) {
         Stats::instance().addToTotal(_config,"numInterCommunityContraction",1);
         ret.value = max_rating;
         ret.target = target;
@@ -232,7 +241,7 @@ class MLCoarsener final : public ICoarsener,
         ret.target = comm_target;
         ret.valid = true;  
       }
-    } else if(max_rating != std::numeric_limits<RatingType>::min()) {
+    } else if(max_rating != std::numeric_limits<RatingType>::min() && _config.preprocessing.rating_threshold < 10000) {
         ASSERT(target != std::numeric_limits<HypernodeID>::max());
         ASSERT(_tmp_ratings[target] == max_rating, V(target));
         Stats::instance().addToTotal(_config,"numInterCommunityContraction",1);
