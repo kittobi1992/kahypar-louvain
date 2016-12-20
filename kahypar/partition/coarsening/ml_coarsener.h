@@ -143,19 +143,46 @@ class MLCoarsener final : public ICoarsener,
           }
         }
       }
+
       if (num_hns_before_pass == _hg.currentNumNodes()) {
-          if(_config.preprocessing.use_louvain && !ignoreCommunities && !_config.preprocessing.only_community_contraction_allowed && _hg.currentNumNodes() >= 2*limit) {
-            _comm.assign(_comm.size(),0);
-            ignoreCommunities = true;
-          } else {
+        if (_config.preprocessing.use_louvain) {
+          if (stop == true && ignoreCommunities == true) {
+            // Out of options... stop coarsening
+            break;
+          }
+
+          if (_config.preprocessing.use_multilevel_louvain) {
             if (stop == true) {
-              break;
-            }
-            if(_config.preprocessing.use_louvain && !ignoreCommunities) {
+              // If stop == true, then we already performed another level of louvain clustering
+              // but still were not able to reduce the number of HNs any further.
+              // In this case, the only option we have left is to ignore community structure and
+              // perform normal coarsening:
+              LOG("===========================> coarsest community structure exhausted");
+              if (!_config.preprocessing.only_community_contraction_allowed && !ignoreCommunities) {
+                LOG("===========================> ignoring community structure");
+                _comm.assign(_comm.size(),0);
+              }
+              ignoreCommunities = true;
+            } else if (!ignoreCommunities) {
+              // In this case stop was set to false because at least one more contraction was possible.
+              // In that case we move on to the next coarser community structure.
+              LOG("===========================> starting new louvain pass");
               performLouvainCommunityDetection(pass_nr);
             }
             stop = true;
+          } else {
+            // If we don't do multilevel louvain, then our only hope after exhausting the existing
+            // community structure is to do further coarsening without community information.
+            if (!_config.preprocessing.only_community_contraction_allowed && !ignoreCommunities) {
+              LOG("===========================> ignoring community structure");
+              _comm.assign(_comm.size(),0);
+            }
+            stop = true;
+            ignoreCommunities = true;
           }
+        } else {
+          break;
+        }
       }
 
       ++pass_nr;
