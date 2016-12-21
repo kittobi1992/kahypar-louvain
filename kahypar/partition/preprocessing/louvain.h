@@ -149,6 +149,14 @@ public:
         return _graph.hypernodeClusterID(hn);
     }
 
+  ClusterID hypernodeClusterID(const HypernodeID hn) const {
+        return _graph.hypernodeClusterID(hn);
+    }
+
+  ClusterID hyperedgeClusterID(const HyperedgeID he, const HypernodeID num_hns) const {
+    return _graph.hyperedgeClusterID(he, num_hns);
+    }
+
 private:
     FRIEND_TEST(ALouvainAlgorithm,DoesOneLouvainPass);
     FRIEND_TEST(ALouvainAlgorithm,AssingsMappingToNextLevelFinerGraph);
