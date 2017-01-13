@@ -11,6 +11,7 @@
 #include <memory>
 #include <vector>
 #include <set>
+#include <queue>
 #include <map>
 
 #include "gtest/gtest_prod.h"
@@ -19,6 +20,7 @@
 
 #include "kahypar/definitions.h"
 #include "kahypar/datastructure/sparse_map.h"
+#include "kahypar/datastructure/fast_reset_flag_array.h"
 #include "kahypar/utils/randomize.h"
 #include "kahypar/partition/configuration.h"
 
@@ -57,8 +59,13 @@ public:
 };    
 
 struct Edge {
+    
+    Edge() : targetNode(0), weight(0.0), bfs_cnt(0), reverse_edge(nullptr) { }
+    
     NodeID targetNode;
     EdgeWeight weight;
+    size_t bfs_cnt;
+    Edge* reverse_edge;
 };
 
 struct IncidentClusterWeight {
@@ -473,12 +480,80 @@ private:
                 else {
                     e.weight = static_cast<EdgeWeight>(hg.edgeWeight(he));
                 }
+                NodeID cur_node = _hypernodeMapping[N + he];
                 _total_weight += e.weight;
-                _weightedDegree[_hypernodeMapping[N + he]] += e.weight;
-                _edges[_adj_array[_hypernodeMapping[N + he]]+pos++] = e;
+                _weightedDegree[cur_node] += e.weight;
+                _edges[_adj_array[cur_node]+pos++] = e;
+                for(size_t i = _adj_array[e.targetNode]; i < _adj_array[e.targetNode+1]; ++i) {
+                    if(_edges[i].targetNode == cur_node) {
+                        _edges[i].reverse_edge = &_edges[_adj_array[cur_node]+pos-1];
+                        _edges[_adj_array[cur_node]+pos-1].reverse_edge = &_edges[i];
+                        break;
+                    }
+                }
            }
         }
         
+        if(!use_uniform_edge_weight) {
+            ds::FastResetFlagArray<> in_queue(_N);
+            std::vector<NodeID> unvisited_nodes(_N);
+            std::iota(unvisited_nodes.begin(),unvisited_nodes.end(),0);
+            size_t T = 200, cur_iteration = 0;
+            
+            //Create BFS-Trees
+            while(cur_iteration < T) {
+                Randomize::instance().shuffleVector(unvisited_nodes,_N);
+                std::queue<NodeID> q;
+                NodeID startNode =  Randomize::instance().getRandomInt(0, _N-1);
+                q.push(startNode); 
+                in_queue.set(startNode,true);
+                size_t visitedNodes = 0; size_t visited_ptr = 0;
+                while(!q.empty()) {
+                    NodeID cur_node = q.front(); q.pop();
+                    ++visitedNodes;
+                    for(size_t i = _adj_array[cur_node]; i < _adj_array[cur_node+1]; ++i) {
+                        if(!in_queue[_edges[i].targetNode]) {
+                            q.push(_edges[i].targetNode);
+                            in_queue.set(_edges[i].targetNode,true);
+                            _edges[i].bfs_cnt++;
+                        }
+                    }
+                    if(q.empty() && visitedNodes < _N) {
+                        while(in_queue[unvisited_nodes[visited_ptr]]) {
+                            visited_ptr++;
+                        }
+                        q.push(unvisited_nodes[visited_ptr]);
+                        in_queue.set(unvisited_nodes[visited_ptr],true);
+                    }
+                }
+                in_queue.reset();
+                ++cur_iteration;
+            }
+            
+            for(HypernodeID hn : hg.nodes()) {
+                NodeID cur_node = _hypernodeMapping[hn];
+                for(size_t i = _adj_array[cur_node]; i < _adj_array[cur_node+1]; ++i) {
+                    size_t bfs_cnt = std::min(_edges[i].bfs_cnt,_edges[i].reverse_edge->bfs_cnt);
+                    if(bfs_cnt == 0) bfs_cnt++;
+                    _edges[i].weight = 1.0/static_cast<double>(bfs_cnt);
+                    _edges[i].reverse_edge->weight = 1.0/static_cast<double>(bfs_cnt);
+                }
+            }
+            
+            _total_weight = 0.0;
+            for(NodeID node : nodes()) {
+                _weightedDegree[node] = 0.0;
+                _selfloop[node] = 0.0;
+                for(Edge e : adjacentNodes(node)) {
+                    if(node == e.targetNode) {
+                        _selfloop[node] = e.weight;
+                    }
+                    _total_weight += e.weight;
+                    _weightedDegree[node] += e.weight;
+                }
+            }
+            
+        }
         
         ASSERT([&]() {
           //Check Hypernodes in Graph

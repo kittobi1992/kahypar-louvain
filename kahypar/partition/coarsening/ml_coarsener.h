@@ -211,7 +211,7 @@ class MLCoarsener final : public ICoarsener,
               Stats::instance().addToTotal(_config,"louvain_"+std::to_string(pass_nr)+"_comm_"+std::to_string(_comm[hn]),_hg.nodeWeight(hn));
           }
           for(ClusterID cid : distinct_comm) {
-              LOG("Community " << cid << " Size = " << Stats::instance().get("louvain_"+std::to_string(pass_nr)+"_comm_"+std::to_string(cid)));
+            LOG("Community " << cid << " Size = " << Stats::instance().get("louvain_"+std::to_string(pass_nr)+"_comm_"+std::to_string(cid)));
           }*/
       }
   }

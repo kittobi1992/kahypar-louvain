@@ -94,6 +94,17 @@ int main(int argc, char* argv[]) {
   auto he_size_quartiles = kahypar::math::firstAndThirdQuartile(he_sizes);
   auto hn_deg_quartiles = kahypar::math::firstAndThirdQuartile(hn_degrees);
 
+  double avgTop50HeSizes = 0.0;
+  double avgTop50HnDegrees = 0.0;
+  for(size_t i = 0; i < 50; ++i) {
+    avgTop50HeSizes += static_cast<double>(he_sizes[he_sizes.size()-1-i]);
+    avgTop50HnDegrees += static_cast<double>(hn_degrees[hn_degrees.size()-1-i]);
+  }
+  avgTop50HeSizes /= 50.0;
+  avgTop50HnDegrees /= 50.0;
+  
+  size_t topK = 10;
+  
   out_stream << "RESULT graph=" << graph_name
   << " HNs=" << num_hypernodes
   << " HEs=" << num_hyperedges
@@ -103,15 +114,27 @@ int main(int argc, char* argv[]) {
   << " sdHEsize=" << sd_he_size
   << " minHEsize=" << min_he_size
   << " heSize90thPercentile=" << kahypar::metrics::hyperedgeSizePercentile(hypergraph, 90)
-  << " Q1HEsize=" << he_size_quartiles.first
+  << " heSize95thPercentile=" << kahypar::metrics::hyperedgeSizePercentile(hypergraph, 95)
+  << " heSize99thPercentile=" << kahypar::metrics::hyperedgeSizePercentile(hypergraph, 99);
+  for(size_t i = 0; i < topK; ++i) {
+    out_stream << " " << (i+1) << "biggestHeSize=" << he_sizes[he_sizes.size()-1-i];
+  }
+  out_stream << " Q1HEsize=" << he_size_quartiles.first
   << " medHEsize=" << kahypar::math::median(he_sizes)
   << " Q3HEsize=" << he_size_quartiles.second
   << " maxHEsize=" << max_he_size
+  << " avgTop50HeSizes=" << avgTop50HeSizes
   << " avgHNdegree=" << avg_hn_degree
   << " sdHNdegree=" << sd_hn_degree
   << " minHnDegree=" << min_hn_degree
   << " hnDegree90thPercentile=" << kahypar::metrics::hypernodeDegreePercentile(hypergraph, 90)
-  << " maxHnDegree=" << max_hn_degree
+  << " hnDegree95thPercentile=" << kahypar::metrics::hypernodeDegreePercentile(hypergraph, 95)
+  << " hnDegree99thPercentile=" << kahypar::metrics::hypernodeDegreePercentile(hypergraph, 99);
+  for(size_t i = 0; i < topK; ++i) {
+      out_stream << " " << (i+1) << "biggestHnDegree=" << hn_degrees[hn_degrees.size()-1-i];
+  }
+  out_stream << " maxHnDegree=" << max_hn_degree
+  << " avgTop50HnDegrees=" << avgTop50HnDegrees
   << " Q1HNdegree=" << hn_deg_quartiles.first
   << " medHNdegree=" << kahypar::math::median(hn_degrees)
   << " Q3HNdegree=" << hn_deg_quartiles.second
