@@ -502,6 +502,7 @@ private:
             
             //Create BFS-Trees
             while(cur_iteration < T) {
+                LOGVAR(cur_iteration);
                 Randomize::instance().shuffleVector(unvisited_nodes,_N);
                 std::queue<NodeID> q;
                 NodeID startNode =  Randomize::instance().getRandomInt(0, _N-1);
@@ -535,8 +536,8 @@ private:
                 for(size_t i = _adj_array[cur_node]; i < _adj_array[cur_node+1]; ++i) {
                     size_t bfs_cnt = std::min(_edges[i].bfs_cnt,_edges[i].reverse_edge->bfs_cnt);
                     if(bfs_cnt == 0) bfs_cnt++;
-                    _edges[i].weight = 1.0/static_cast<double>(bfs_cnt);
-                    _edges[i].reverse_edge->weight = 1.0/static_cast<double>(bfs_cnt);
+                    _edges[i].weight *= (1.0 - static_cast<EdgeWeight>(bfs_cnt)/static_cast<EdgeWeight>(T));
+                    _edges[i].reverse_edge->weight *= (1.0 - static_cast<EdgeWeight>(bfs_cnt)/static_cast<EdgeWeight>(T));
                 }
             }
             
