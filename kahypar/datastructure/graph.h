@@ -456,7 +456,7 @@ private:
                 Edge e;
                 e.targetNode = _hypernodeMapping[N + he];
                 if(!use_uniform_edge_weight) {
-                    e.weight = static_cast<EdgeWeight>(hg.edgeWeight(he))/
+                    e.weight = (static_cast<EdgeWeight>(hg.edgeWeight(he))*static_cast<EdgeWeight>(hg.nodeDegree(hn)))/
                                static_cast<EdgeWeight>(hg.edgeSize(he));
                 }
                 else {
@@ -474,7 +474,7 @@ private:
                 Edge e;
                 e.targetNode = _hypernodeMapping[hn];
                 if(!use_uniform_edge_weight) {
-                    e.weight = static_cast<EdgeWeight>(hg.edgeWeight(he))/
+                    e.weight = (static_cast<EdgeWeight>(hg.edgeWeight(he))*static_cast<EdgeWeight>(hg.nodeDegree(hn)))/
                     static_cast<EdgeWeight>(hg.edgeSize(he));
                 }
                 else {
