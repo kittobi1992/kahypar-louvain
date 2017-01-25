@@ -535,9 +535,6 @@ private:
                 NodeID cur_node = _hypernodeMapping[hn];
                 for(size_t i = _adj_array[cur_node]; i < _adj_array[cur_node+1]; ++i) {
                     size_t bfs_cnt = std::min(_edges[i].bfs_cnt,_edges[i].reverse_edge->bfs_cnt);
-                    if(bfs_cnt >= 5) {
-                        bfs_cnt = std::max(_edges[i].bfs_cnt,_edges[i].reverse_edge->bfs_cnt);
-                    }
                     if(bfs_cnt == 0) bfs_cnt++;
                     _edges[i].weight *= (1.0 - static_cast<EdgeWeight>(bfs_cnt)/static_cast<EdgeWeight>(T));
                     _edges[i].reverse_edge->weight *= (1.0 - static_cast<EdgeWeight>(bfs_cnt)/static_cast<EdgeWeight>(T));
