@@ -191,7 +191,7 @@ private:
         do {
             LOG("######## Starting Louvain-Pass-Iteration #" << ++iterations << " ########");
             node_moves = 0;
-            for(NodeID node : g.randomNodeOrder()) {
+            for(NodeID node : g.nodes()) {
                 ClusterID cur_cid = g.clusterID(node);
                 EdgeWeight cur_incident_cluster_weight = 0.0L;
                 ClusterID best_cid = cur_cid;

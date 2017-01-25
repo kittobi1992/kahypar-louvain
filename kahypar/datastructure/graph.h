@@ -531,13 +531,33 @@ private:
                 ++cur_iteration;
             }
             
+            size_t max_bfs = 0;
+            for(HyperedgeID he : hg.edges()) {
+                NodeID cur_node = _hypernodeMapping[N + he];
+                size_t max_bfs_cnt = 0, second_max_bfs_cnt = 0;
+                for(size_t i = _adj_array[cur_node]; i < _adj_array[cur_node+1]; ++i) {
+                    size_t bfs_cnt = _edges[i].reverse_edge->bfs_cnt;
+                    if(max_bfs_cnt < bfs_cnt) {
+                        second_max_bfs_cnt = max_bfs_cnt;
+                        max_bfs_cnt = bfs_cnt;
+                    } else if(second_max_bfs_cnt < bfs_cnt) {
+                        second_max_bfs_cnt = bfs_cnt;
+                    }
+                }
+                max_bfs = std::max(max_bfs,second_max_bfs_cnt);
+                for(size_t i = _adj_array[cur_node]; i < _adj_array[cur_node+1]; ++i) {
+                    _edges[i].bfs_cnt = second_max_bfs_cnt;
+                    _edges[i].reverse_edge->bfs_cnt = second_max_bfs_cnt;
+                }
+            }
+            
             for(HypernodeID hn : hg.nodes()) {
                 NodeID cur_node = _hypernodeMapping[hn];
                 for(size_t i = _adj_array[cur_node]; i < _adj_array[cur_node+1]; ++i) {
                     size_t bfs_cnt = std::min(_edges[i].bfs_cnt,_edges[i].reverse_edge->bfs_cnt);
                     if(bfs_cnt == 0) bfs_cnt++;
-                    _edges[i].weight *= (1.0 - static_cast<EdgeWeight>(bfs_cnt)/static_cast<EdgeWeight>(T));
-                    _edges[i].reverse_edge->weight *= (1.0 - static_cast<EdgeWeight>(bfs_cnt)/static_cast<EdgeWeight>(T));
+                    _edges[i].weight *= (1.0 - static_cast<EdgeWeight>(bfs_cnt)/static_cast<EdgeWeight>(max_bfs));
+                    _edges[i].reverse_edge->weight *= (1.0 - static_cast<EdgeWeight>(bfs_cnt)/static_cast<EdgeWeight>(max_bfs));
                 }
             }
             
