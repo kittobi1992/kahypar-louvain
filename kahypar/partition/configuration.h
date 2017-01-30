@@ -52,7 +52,9 @@ struct PreprocessingParameters {
   bool use_louvain_in_ip = true;
   bool use_multilevel_louvain = false;
   bool louvain_contract_graph_like_hg = false;
+  LouvainEdgeWeight louvain_edge_weight = LouvainEdgeWeight::uniform;
   bool louvain_use_uniform_edge_weights = false;
+  bool louvain_use_bfs_edge_weight = false;
   bool louvain_use_bipartite_graph = true;
   bool only_community_contraction_allowed = true;
   int max_louvain_pass_iterations = 10;
@@ -103,6 +105,9 @@ inline std::ostream& operator<< (std::ostream& str, const PreprocessingParameter
   str << "  minimum quality improvement:           " << params.min_eps_improvement << std::endl;
   str << "  louvain uses uniform edge weight:      " << std::boolalpha
   << params.louvain_use_uniform_edge_weights << std::endl;
+    str << "  louvain edge weight:                 " << toString(params.louvain_edge_weight) << std::endl;
+    str << "  louvain use bfs edge weight:         " << std::boolalpha
+  << params.louvain_use_bfs_edge_weight << std::endl;
   str << "  use multilevel louvain:                " << std::boolalpha
   << params.use_multilevel_louvain << std::endl;
   str << "  contract graph like hypergraph:        " << std::boolalpha

@@ -29,6 +29,12 @@ enum class Mode : uint8_t {
   direct_kway
 };
 
+enum class LouvainEdgeWeight : uint8_t {
+  uniform,
+  non_uniform,
+  degree
+};
+
 enum class InitialPartitioningTechnique : uint8_t {
   multilevel,
   flat
@@ -108,6 +114,18 @@ static std::string toString(const InitialPartitioningTechnique& technique) {
       return std::string("flat");
     case InitialPartitioningTechnique::multilevel:
       return std::string("multilevel");
+  }
+  return std::string("UNDEFINED");
+}
+
+static std::string toString(const LouvainEdgeWeight& weight) {
+  switch (weight) {
+    case LouvainEdgeWeight::uniform:
+      return std::string("uniform");
+    case LouvainEdgeWeight::non_uniform:
+      return std::string("non_uniform");
+    case LouvainEdgeWeight::degree:
+      return std::string("degree");
   }
   return std::string("UNDEFINED");
 }
@@ -206,6 +224,19 @@ static RefinementStoppingRule stoppingRuleFromString(const std::string& rule) {
   std::cout << "No valid stopping rule for FM." << std::endl;
   exit(0);
   return RefinementStoppingRule::simple;
+}
+
+static LouvainEdgeWeight edgeWeightFromString(const std::string& type) {
+  if (type == "uniform") {
+    return LouvainEdgeWeight::uniform;
+  } else if (type == "non_uniform") {
+    return LouvainEdgeWeight::non_uniform;
+  } else if (type == "degree") {
+    return LouvainEdgeWeight::degree;
+  }
+  std::cout << "Illegal option:" << type << std::endl;
+  exit(0);
+  return LouvainEdgeWeight::uniform;
 }
 
 static CoarseningAlgorithm coarseningAlgorithmFromString(const std::string& type) {

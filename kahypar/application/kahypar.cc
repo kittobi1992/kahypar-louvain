@@ -305,6 +305,20 @@ void processCommandLineInput(Configuration& config, int argc, char* argv[]) {
      po::value<bool>(&config.preprocessing.louvain_use_uniform_edge_weights)->value_name("<bool>"),
      "If true, louvain transforms hypergraph in graph, where all edges have weight one\n"
      "(default: false)")
+    ("p-louvain-edge-weight",
+    po::value<std::string>()->value_name("<string>")->notifier(
+      [&](const std::string& ptype) {
+    config.preprocessing.louvain_edge_weight = kahypar::edgeWeightFromString(ptype);
+     }),
+    "Weights:\n"
+    " - uniform\n"
+    " - non_uniform\n"
+    " - degree \n"
+    "(default: uniform)")
+    ("p-louvain-use-bfs-edge-weight",
+     po::value<bool>(&config.preprocessing.louvain_use_bfs_edge_weight)->value_name("<bool>"),
+     "If true, basic edge weight function is extended with bfs weight function\n"
+     "(default: false)")
     ("p-use-multilevel-louvain",
      po::value<bool>(&config.preprocessing.use_multilevel_louvain)->value_name("<bool>"),
      "Using louvain community detection after each contraction step\n"

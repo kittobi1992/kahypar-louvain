@@ -86,6 +86,9 @@ static inline void serialize(const Configuration& config, const Hypergraph& hype
   << " rating_threshold=" << config.preprocessing.rating_threshold
   << " louvain_use_uniform_edge_weights=" << std::boolalpha
   << config.preprocessing.louvain_use_uniform_edge_weights
+  << " louvain_edge_weight=" << toString(config.preprocessing.louvain_edge_weight)
+  << " louvain_use_uniform_edge_weights=" << std::boolalpha
+  << config.preprocessing.louvain_use_bfs_edge_weight
   << " use_multilevel_louvain=" << std::boolalpha
   << config.preprocessing.use_multilevel_louvain
   << " louvain_contract_graph_like_hg=" << std::boolalpha

@@ -455,11 +455,14 @@ private:
             for(HyperedgeID he : hg.incidentEdges(hn)) {
                 Edge e;
                 e.targetNode = _hypernodeMapping[N + he];
-                if(!use_uniform_edge_weight) {
+                if(_config.preprocessing.louvain_edge_weight == LouvainEdgeWeight::degree) {
                     e.weight = (static_cast<EdgeWeight>(hg.edgeWeight(he))*static_cast<EdgeWeight>(hg.nodeDegree(hn)))/
                                static_cast<EdgeWeight>(hg.edgeSize(he));
                 }
-                else {
+                else if(_config.preprocessing.louvain_edge_weight == LouvainEdgeWeight::non_uniform) {
+                    e.weight = (static_cast<EdgeWeight>(hg.edgeWeight(he)))/
+                               static_cast<EdgeWeight>(hg.edgeSize(he));
+                } else {
                     e.weight = static_cast<EdgeWeight>(hg.edgeWeight(he));
                 }
                 _total_weight += e.weight;
@@ -473,11 +476,14 @@ private:
            for(HypernodeID hn : hg.pins(he)) {
                 Edge e;
                 e.targetNode = _hypernodeMapping[hn];
-                if(!use_uniform_edge_weight) {
+                if(_config.preprocessing.louvain_edge_weight == LouvainEdgeWeight::degree) {
                     e.weight = (static_cast<EdgeWeight>(hg.edgeWeight(he))*static_cast<EdgeWeight>(hg.nodeDegree(hn)))/
-                    static_cast<EdgeWeight>(hg.edgeSize(he));
+                               static_cast<EdgeWeight>(hg.edgeSize(he));
                 }
-                else {
+                else if(_config.preprocessing.louvain_edge_weight == LouvainEdgeWeight::non_uniform) {
+                    e.weight = (static_cast<EdgeWeight>(hg.edgeWeight(he)))/
+                               static_cast<EdgeWeight>(hg.edgeSize(he));
+                } else {
                     e.weight = static_cast<EdgeWeight>(hg.edgeWeight(he));
                 }
                 NodeID cur_node = _hypernodeMapping[N + he];
@@ -494,7 +500,7 @@ private:
            }
         }
         
-//         if(!use_uniform_edge_weight) {
+        if(_config.preprocessing.louvain_use_bfs_edge_weight) {
             ds::FastResetFlagArray<> in_queue(_N);
             std::vector<NodeID> unvisited_nodes(_N);
             std::iota(unvisited_nodes.begin(),unvisited_nodes.end(),0);
@@ -512,6 +518,7 @@ private:
                 while(!q.empty()) {
                     NodeID cur_node = q.front(); q.pop();
                     ++visitedNodes;
+                    Randomize::instance().shuffleVector(_edges,_adj_array[cur_node],_adj_array[cur_node+1]);
                     for(size_t i = _adj_array[cur_node]; i < _adj_array[cur_node+1]; ++i) {
                         if(!in_queue[_edges[i].targetNode]) {
                             q.push(_edges[i].targetNode);
@@ -531,7 +538,7 @@ private:
                 ++cur_iteration;
             }
             
-            size_t max_bfs = 0;
+            /*size_t max_bfs = 0;
             for(HyperedgeID he : hg.edges()) {
                 NodeID cur_node = _hypernodeMapping[N + he];
                 size_t max_bfs_cnt = 0, second_max_bfs_cnt = 0;
@@ -549,15 +556,15 @@ private:
                     _edges[i].bfs_cnt = second_max_bfs_cnt;
                     _edges[i].reverse_edge->bfs_cnt = second_max_bfs_cnt;
                 }
-            }
+            }*/
             
             for(HypernodeID hn : hg.nodes()) {
                 NodeID cur_node = _hypernodeMapping[hn];
                 for(size_t i = _adj_array[cur_node]; i < _adj_array[cur_node+1]; ++i) {
                     size_t bfs_cnt = std::min(_edges[i].bfs_cnt,_edges[i].reverse_edge->bfs_cnt);
                     if(bfs_cnt == 0) bfs_cnt++;
-                    _edges[i].weight *= (1.0 - static_cast<EdgeWeight>(bfs_cnt)/static_cast<EdgeWeight>(max_bfs));
-                    _edges[i].reverse_edge->weight *= (1.0 - static_cast<EdgeWeight>(bfs_cnt)/static_cast<EdgeWeight>(max_bfs));
+                    _edges[i].weight *= (1.0 - static_cast<EdgeWeight>(bfs_cnt)/static_cast<EdgeWeight>(T));
+                    _edges[i].reverse_edge->weight *= (1.0 - static_cast<EdgeWeight>(bfs_cnt)/static_cast<EdgeWeight>(T));
                 }
             }
             
@@ -574,7 +581,7 @@ private:
                 }
             }
             
-//         }
+         }
         
         ASSERT([&]() {
           //Check Hypernodes in Graph

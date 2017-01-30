@@ -51,6 +51,11 @@ class Randomize {
   void shuffleVector(std::vector<T>& vector, size_t num_elements) {
     std::shuffle(vector.begin(), vector.begin() + num_elements, _gen);
   }
+  
+  template <typename T>
+  void shuffleVector(std::vector<T>& vector, size_t i, size_t j) {
+    std::shuffle(vector.begin() + i, vector.begin() + j, _gen);
+  }
 
   // returns uniformly random int from the interval [low, high]
   int getRandomInt(int low, int high) {
