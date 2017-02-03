@@ -301,6 +301,10 @@ void processCommandLineInput(Configuration& config, int argc, char* argv[]) {
      po::value<long double>(&config.preprocessing.min_eps_improvement)->value_name("<long double>"),
      "Minimum improvement of quality during a louvain pass which leads to further passes\n"
      "(default: 0.01)")
+    ("p-louvain-multiresolution-limit",
+     po::value<long double>(&config.preprocessing.louvain_multiresolution_limit)->value_name("<long double>"),
+     "Multi-resolution limit controls effectively the size of the resulting communities\n"
+     "(default: 1.0)")
     ("p-louvain-use-uniform-edge-weight",
      po::value<bool>(&config.preprocessing.louvain_use_uniform_edge_weights)->value_name("<bool>"),
      "If true, louvain transforms hypergraph in graph, where all edges have weight one\n"

@@ -28,7 +28,7 @@ friend class Modularity;
     
 public:
     
-    QualityMeasure(Graph& graph) : graph(graph) { }
+    QualityMeasure(Graph& graph, const Configuration& config) : graph(graph), config(config) { }
     
     virtual ~QualityMeasure() { }
     
@@ -39,13 +39,14 @@ public:
 
 private:
     Graph& graph;
+    const Configuration& config;
     
 };
 
 class Modularity : public QualityMeasure {
 
 public:
-    Modularity(Graph& graph) : QualityMeasure(graph), in(graph.numNodes(),0), tot(graph.numNodes(),0), vis(graph.numNodes()) { 
+    Modularity(Graph& graph, const Configuration& config) : QualityMeasure(graph,config), in(graph.numNodes(),0), tot(graph.numNodes(),0), vis(graph.numNodes()) { 
         for(NodeID node : graph.nodes()) {
             ClusterID cur_cid = graph.clusterID(node);
             for(auto cluster : graph.incidentClusterWeightOfNode(node)) {
@@ -96,7 +97,7 @@ public:
         ASSERT(graph.clusterID(node) == -1, "Node " << node << " isn't a isolated node!");
         
         EdgeWeight totc = tot[cid];
-        EdgeWeight m2 = graph.totalWeight();
+        EdgeWeight m2 = graph.totalWeight()/config.preprocessing.louvain_multiresolution_limit;
         EdgeWeight w_degree = graph.weightedDegree(node);
         
         EdgeWeight gain = incidentCommWeight - totc*w_degree/m2;
@@ -122,7 +123,7 @@ public:
     
     EdgeWeight quality() {
         EdgeWeight q = 0.0L;
-        EdgeWeight m2 = graph.totalWeight();
+        EdgeWeight m2 = graph.totalWeight()/config.preprocessing.louvain_multiresolution_limit;
         for(NodeID node : graph.nodes()) {
             if(tot[node] > EPS) {
                 q += in[node] - (tot[node]*tot[node])/m2;
@@ -167,6 +168,7 @@ private:
     }
     
     using QualityMeasure::graph;
+    using QualityMeasure::config;
     std::vector<EdgeWeight> in;
     std::vector<EdgeWeight> tot;
     FastResetFlagArray<> vis;

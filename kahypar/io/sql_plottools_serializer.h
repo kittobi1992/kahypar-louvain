@@ -95,6 +95,7 @@ static inline void serialize(const Configuration& config, const Hypergraph& hype
   << config.preprocessing.louvain_contract_graph_like_hg
     << " louvain_use_bipartite_graph=" << std::boolalpha
   << config.preprocessing.louvain_use_bipartite_graph
+  << " louvain_multiresolution_limit=" << config.preprocessing.louvain_multiresolution_limit
   << " only_community_contraction_allowed=" << std::boolalpha
   << config.preprocessing.only_community_contraction_allowed  
   << " coarsening_algo=" << toString(config.coarsening.algorithm)

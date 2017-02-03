@@ -56,6 +56,7 @@ struct PreprocessingParameters {
   bool louvain_use_uniform_edge_weights = false;
   bool louvain_use_bfs_edge_weight = false;
   bool louvain_use_bipartite_graph = true;
+  long double louvain_multiresolution_limit = 1.0;
   bool only_community_contraction_allowed = true;
   int max_louvain_pass_iterations = 10;
   long double min_eps_improvement = 0.01;
@@ -110,6 +111,7 @@ inline std::ostream& operator<< (std::ostream& str, const PreprocessingParameter
   << params.louvain_use_bfs_edge_weight << std::endl;
   str << "  use multilevel louvain:                " << std::boolalpha
   << params.use_multilevel_louvain << std::endl;
+  str << "  louvain multiresolution limit:         " << params.louvain_multiresolution_limit << std::endl;
   str << "  contract graph like hypergraph:        " << std::boolalpha
   << params.louvain_contract_graph_like_hg << std::endl;
   str << "  allow only contraction in communities: " << std::boolalpha

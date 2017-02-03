@@ -70,7 +70,7 @@ public:
             
             LOG("Graph Number Nodes: " << graph_stack[cur_idx].numNodes());
             LOG("Graph Number Edges: " << graph_stack[cur_idx].numEdges());
-            QualityMeasure quality(graph_stack[cur_idx]);
+            QualityMeasure quality(graph_stack[cur_idx],_config);
             if(iteration == 0) {
                 cur_quality = quality.quality();
             }
