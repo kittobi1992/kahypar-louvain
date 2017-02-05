@@ -53,6 +53,7 @@ using kahypar::Partitioner;
 using kahypar::Configuration;
 using kahypar::Mode;
 using kahypar::Objective;
+using kahypar::LouvainEdgeWeight;
 using kahypar::CoarseningAlgorithm;
 using kahypar::RefinementAlgorithm;
 using kahypar::InitialPartitionerAlgorithm;
@@ -588,6 +589,19 @@ int main(int argc, char* argv[]) {
         config.preprocessing.min_hash_sparsifier.min_median_he_size) {
       config.preprocessing.min_hash_sparsifier.is_active = true;
     }
+  }
+  
+  if(config.preprocessing.use_louvain) {
+      double density = static_cast<double>(hypergraph.initialNumEdges())/static_cast<double>(hypergraph.initialNumNodes());
+      if(density < 0.75) {
+        config.preprocessing.louvain_edge_weight = LouvainEdgeWeight::degree;
+      }
+      else if(density >= 0.75 && density < 1.25) {
+        config.preprocessing.louvain_edge_weight = LouvainEdgeWeight::uniform;
+      }
+      else {
+        config.preprocessing.louvain_edge_weight = LouvainEdgeWeight::uniform;
+      }
   }
 
   if (config.partition.verbose_output) {

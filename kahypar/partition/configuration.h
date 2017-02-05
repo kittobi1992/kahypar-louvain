@@ -66,19 +66,19 @@ struct PreprocessingParameters {
 
 inline std::ostream& operator<< (std::ostream& str, const MinHashSparsifierParameters& params) {
   str << "MinHash Sparsifier Parameters:" << std::endl;
-  str << "  max hyperedge size:                 "
+  str << "  max hyperedge size:                    "
   << params.max_hyperedge_size << std::endl;
-  str << "  max cluster size:                   "
+  str << "  max cluster size:                      "
   << params.max_cluster_size << std::endl;
-  str << "  min cluster size:                   "
+  str << "  min cluster size:                      "
   << params.min_cluster_size << std::endl;
-  str << "  number of hash functions:           "
+  str << "  number of hash functions:              "
   << params.num_hash_functions << std::endl;
-  str << "  number of combined hash functions:  "
+  str << "  number of combined hash functions:     "
   << params.combined_num_hash_functions << std::endl;
-  str << "  active at median net size >=:       "
+  str << "  active at median net size >=:          "
   << params.min_median_he_size << std::endl;
-  str << "  sparsifier is active:               " << std::boolalpha
+  str << "  sparsifier is active:                  " << std::boolalpha
   << params.is_active;
   return str;
 }
@@ -86,7 +86,7 @@ inline std::ostream& operator<< (std::ostream& str, const MinHashSparsifierParam
 
 inline std::ostream& operator<< (std::ostream& str, const PreprocessingParameters& params) {
   str << "Preprocessing Parameters:" << std::endl;
-  str << "  enable min hash sparsifier:         " << std::boolalpha
+  str << "  enable min hash sparsifier:            " << std::boolalpha
   << params.enable_min_hash_sparsifier << std::endl;
   str << "  remove parallel HEs:                   " << std::boolalpha
   << params.remove_parallel_hes << std::endl;
@@ -100,14 +100,14 @@ inline std::ostream& operator<< (std::ostream& str, const PreprocessingParameter
   << params.use_louvain << std::endl;
   str << "  use louvain community detection in IP: " << std::boolalpha
   << params.use_louvain_in_ip << std::endl;
-    str << "  use bipartite graph representation:  " << std::boolalpha
+  str << "  use bipartite graph representation:    " << std::boolalpha
   << params.louvain_use_bipartite_graph << std::endl;
   str << "  maximum louvain-pass iterations:       " << params.max_louvain_pass_iterations << std::endl;
   str << "  minimum quality improvement:           " << params.min_eps_improvement << std::endl;
   str << "  louvain uses uniform edge weight:      " << std::boolalpha
   << params.louvain_use_uniform_edge_weights << std::endl;
-    str << "  louvain edge weight:                 " << toString(params.louvain_edge_weight) << std::endl;
-    str << "  louvain use bfs edge weight:         " << std::boolalpha
+  str << "  louvain edge weight:                   " << toString(params.louvain_edge_weight) << std::endl;
+  str << "  louvain use bfs edge weight:           " << std::boolalpha
   << params.louvain_use_bfs_edge_weight << std::endl;
   str << "  use multilevel louvain:                " << std::boolalpha
   << params.use_multilevel_louvain << std::endl;
