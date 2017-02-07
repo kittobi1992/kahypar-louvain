@@ -207,6 +207,10 @@ public:
         Randomize::instance().shuffleVector(_shuffleNodes, _shuffleNodes.size());
         return std::make_pair(_shuffleNodes.begin(),_shuffleNodes.end());
     }
+    
+    void shuffleNodes() {
+        Randomize::instance().shuffleVector(_shuffleNodes, _shuffleNodes.size());
+    }
 
     
     std::pair<EdgeIterator,EdgeIterator> adjacentNodes(const NodeID node) const {
